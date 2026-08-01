@@ -201,8 +201,15 @@ _BADGE_RE = re.compile(
     rb'<div class="badge">\s*<span class="accent">#</span>\s*last30days:\s*(.+?)\s*</div>',
     re.IGNORECASE,
 )
-_RAW_JSON_SUFFIX = re.compile(r"^(.*)-raw\.json$")
-_RAW_HTML_SUFFIX = re.compile(r"^(.*)-raw-html\.html$")
+# Matches report files, both base ({topic}-raw-html.html / {topic}-raw.json)
+# and dated-counter variants ({topic}-raw-html-YYYY-MM-DD-N.html / -raw-...json).
+# Dated variants are produced by the engine whenever the base name is taken.
+_RAW_HTML_RE = re.compile(
+    r"^(?P<topic>.+?)-raw-html(?P<date>(?:-\d{4}-\d{2}-\d{2}(?P<run>-\d+)?)?)\.html$"
+)
+_RAW_JSON_RE = re.compile(
+    r"^(?P<topic>.+?)-raw(?P<date>(?:-\d{4}-\d{2}-\d{2}(?P<run>-\d+)?)?)\.json$"
+)
 
 
 def extract_title(html_path: Path) -> str:
@@ -214,39 +221,49 @@ def extract_title(html_path: Path) -> str:
     return html_path.stem
 
 
-def slug_from_path(name: str) -> str | None:
-    m = _RAW_HTML_SUFFIX.match(name)
+def html_report_key(html_name: str) -> str | None:
+    """Unique report key for an HTML report filename (base or dated).
+
+    The key is the html filename stem, e.g. ``ai-agents-raw-html-2026-08-01-3``.
+    """
+    m = _RAW_HTML_RE.match(html_name)
     if m:
-        return m.group(1)
-    m = _RAW_JSON_SUFFIX.match(name)
-    if m:
-        return m.group(1)
+        return f"{m.group('topic')}-raw-html{m.group('date') or ''}"
     return None
 
 
-def report_name_from_html(name: str) -> str | None:
-    m = _RAW_HTML_SUFFIX.match(name)
-    return m.group(1) if m else None
+def json_name_for_html(html_name: str) -> str | None:
+    """Return the paired JSON evidence filename for an HTML report filename."""
+    m = _RAW_HTML_RE.match(html_name)
+    if m:
+        return f"{m.group('topic')}-raw{m.group('date') or ''}.json"
+    return None
+
+
+def report_key_to_json_name(key: str) -> str:
+    """Map a report key (html stem) to its JSON evidence filename."""
+    return key.replace("-raw-html", "-raw") + ".json"
 
 
 def json_path_for_html(html_name: str, data_dir: Path) -> Path | None:
-    slug = report_name_from_html(html_name)
-    if slug is None:
+    json_name = json_name_for_html(html_name)
+    if json_name is None:
         return None
-    candidate = data_dir / f"{slug}-raw.json"
+    candidate = data_dir / json_name
     return candidate if candidate.is_file() else None
 
 
 def list_reports(data_dir: Path) -> list[dict]:
     reports = {}
     for p in sorted(data_dir.iterdir(), reverse=True):
-        slug = report_name_from_html(p.name)
-        if slug is None:
+        key = html_report_key(p.name)
+        if key is None:
             continue
         mtime = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc)
-        has_json = (data_dir / f"{slug}-raw.json").is_file()
-        reports.setdefault(slug, {
-            "slug": slug,
+        json_name = json_name_for_html(p.name)
+        has_json = (data_dir / json_name).is_file() if json_name else False
+        reports.setdefault(key, {
+            "slug": key,
             "html": p.name,
             "title": extract_title(p),
             "mtime": mtime.isoformat(),
@@ -601,24 +618,24 @@ class Last30daysHandler(http.server.SimpleHTTPRequestHandler):
         if path.startswith("/report/"):
             parts = path.split("/")
             if len(parts) == 3:
-                slug = parts[2]
-                html_file = self.data_dir / f"{slug}-raw-html.html"
+                key = parts[2]
+                html_file = self.data_dir / f"{key}.html"
                 if html_file.is_file():
                     self._serve_file(html_file)
                 else:
                     self.send_error(404, "Report not found")
                 return
             if len(parts) == 4 and parts[3] == "evidence":
-                slug = parts[2]
-                json_file = self.data_dir / f"{slug}-raw.json"
-                html_file = self.data_dir / f"{slug}-raw-html.html"
+                key = parts[2]
+                json_file = self.data_dir / report_key_to_json_name(key)
+                html_file = self.data_dir / f"{key}.html"
                 if json_file.is_file():
                     data = load_evidence_json(json_file)
                     mtime = ""
                     if html_file.is_file():
                         mtime = datetime.fromtimestamp(html_file.stat().st_mtime, tz=timezone.utc).isoformat()
                     if data:
-                        self._serve_string(render_evidence_page(slug, data, mtime), "text/html")
+                        self._serve_string(render_evidence_page(key, data, mtime), "text/html")
                         return
                 self.send_error(404, "Evidence not found")
                 return
@@ -652,15 +669,14 @@ class Last30daysHandler(http.server.SimpleHTTPRequestHandler):
         path = parsed.path.rstrip("/")
         parts = path.split("/")
         if len(parts) == 4 and parts[1] == "api" and parts[2] == "reports":
-            slug = parts[3]
+            key = parts[3]
             deleted = 0
-            for suffix in ["-raw-html.html", "-raw.json"]:
-                p = self.data_dir / f"{slug}{suffix}"
+            for p in [self.data_dir / f"{key}.html", self.data_dir / report_key_to_json_name(key)]:
                 if p.is_file():
                     p.unlink()
                     deleted += 1
             if deleted:
-                self._serve_string(json.dumps({"status": "deleted", "slug": slug, "files": deleted}), "application/json")
+                self._serve_string(json.dumps({"status": "deleted", "slug": key, "files": deleted}), "application/json")
             else:
                 self.send_error(404, "Report not found")
         else:
@@ -676,12 +692,12 @@ class Last30daysHandler(http.server.SimpleHTTPRequestHandler):
             return
         content_type = "text/html" if path.suffix == ".html" else "application/octet-stream"
         if content_type == "text/html":
-            slug = report_name_from_html(path.name)
-            if slug:
-                json_file = self.data_dir / f"{slug}-raw.json"
+            key = html_report_key(path.name)
+            if key:
+                json_file = self.data_dir / report_key_to_json_name(key)
                 evidence_data = load_evidence_json(json_file) if json_file.is_file() else None
                 if evidence_data:
-                    items_html = render_evidence_inline(slug, evidence_data)
+                    items_html = render_evidence_inline(key, evidence_data)
                     data = data.replace(b"</body>", items_html.encode("utf-8") + b"</body>")
         self.send_response(200)
         self.send_header("Content-Type", f"{content_type}; charset=utf-8")
