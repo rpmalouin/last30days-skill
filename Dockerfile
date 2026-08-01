@@ -6,7 +6,8 @@ COPY . .
 
 # Production deps are empty (stdlib-only engine), dev deps are not needed.
 # uv is not strictly needed at runtime but available for add-on workflows.
-RUN pip install --no-cache-dir uv
+# yt-dlp makes the YouTube source detectable/usable (engine requires it).
+RUN pip install --no-cache-dir uv yt-dlp
 
 EXPOSE 8080
 
