@@ -53,7 +53,8 @@ cp .env.example .env
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `RESEARCH_TOPIC` | unset | Topic to research on container start |
-| `SOURCES` | unset (all) | Comma-separated source keys to show (e.g. `reddit,x,youtube`) |
+| `SOURCES` | unset (all) | Comma-separated source keys to show (e.g. `reddit,x,youtube`). **No spaces** after commas. |
+| `SCRAPECREATORS_API_KEY` | unset | Required for reliable Reddit/TikTok/LinkedIn results (keyless Reddit is rate-limited to HTTP 429) |
 | `RESEARCH_INTERVAL_HOURS` | unset | Re-run research on a schedule |
 | `DATA_PATH` | `./data` | Host directory mounted to `/data` for report storage |
 | `PORT` | `8080` | Host port mapped to the web UI |
@@ -65,6 +66,7 @@ DATA_PATH=./data
 PORT=8080
 RESEARCH_TOPIC=AI coding agents
 SOURCES=reddit,x,youtube,hackernews,github
+SCRAPECREATORS_API_KEY=your_key_here
 ```
 
 ### API keys and CLI tools
@@ -75,12 +77,15 @@ Sources that need credentials fall back gracefully when not configured — they 
 |--------|----------|
 | Reddit | `SCRAPECREATORS_API_KEY` (paid) or keyless fallback (RSS + scraping) |
 | X/Twitter | `XAI_API_KEY`, `XQUIK_API_KEY`, or `bird` CLI installed |
-| YouTube | `yt-dlp` CLI installed |
+| YouTube | `yt-dlp` (installed by the Dockerfile) |
 | GitHub | `gh` CLI or `GITHUB_TOKEN` |
 | TikTok / LinkedIn | `SCRAPECREATORS_API_KEY` |
 | Perplexity | `PERPLEXITY_API_KEY` |
 | Digg / arXiv / Techmeme | respective CLI tool on PATH |
 | HN / Polymarket / StockTwits / Web | keyless (always work) |
+
+> **Note**: the Docker build requires the engine at `skills/last30days/` in the repo. If you pulled this wrapper without it, restore it from a release tag before building:
+> `git checkout v3.18.4 -- skills/last30days`
 
 ---
 

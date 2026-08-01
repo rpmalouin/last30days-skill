@@ -119,10 +119,11 @@ Deploy the engine as a containerized web app. Serves both the agent-synthesized 
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Python 3.12-slim, no external deps (engine is stdlib-only), exposes 8080 |
+| `skills/last30days/` | The engine itself — **must be present in the build context**. Restored from tag `v3.18.4` (not tracked on `main` before 2026-08-01); without it `entrypoint.sh`/`serve.py` fail with `No such file or directory`. `git checkout v3.18.4 -- skills/last30days` to restore. |
+| `Dockerfile` | Python 3.12-slim; installs `uv` + `yt-dlp` (yt-dlp is required for the YouTube source), exposes 8080 |
 | `entrypoint.sh` | If `RESEARCH_TOPIC` is set, runs engine twice (HTML + raw JSON). Then starts web server |
 | `scripts/serve.py` | stdlib-only HTTP server. Routes, evidence injection, index page, research API |
-| `docker-compose.yaml` | Port 8080, DATA_PATH volume, RESEARCH_TOPIC / RESEARCH_INTERVAL_HOURS env vars |
+| `docker-compose.yaml` | Port 8080, DATA_PATH volume, RESEARCH_TOPIC / RESEARCH_INTERVAL_HOURS / SCRAPECREATORS_API_KEY env vars |
 
 ### How it works
 
@@ -164,23 +165,29 @@ Deploy the engine as a containerized web app. Serves both the agent-synthesized 
 | `RESEARCH_TOPIC` | unset | Topic to research on startup (runs HTML + JSON emit) |
 | `RESEARCH_INTERVAL_HOURS` | `0` | If > 0, re-runs research on a schedule (requires RESEARCH_TOPIC) |
 | `LAST30DAYS_MEMORY_DIR` | `/data` | Save directory for reports |
-| `SOURCES` | unset (all) | Comma-separated source keys to show in the UI (e.g. `reddit,x,youtube`). Filters which source tabs appear. Also passed as `--search` to engine on startup/scheduled runs. |
+| `SOURCES` | unset (all) | Comma-separated source keys to show in the UI (e.g. `reddit,x,youtube`). Filters which source tabs appear. Also passed as `--search` to engine on startup/scheduled runs. Values must be comma-separated with **no spaces** (`reddit,x`). |
+| `SCRAPECREATORS_API_KEY` | unset | Required for reliable Reddit/TikTok/LinkedIn results. Keyless Reddit is rate-limited with HTTP 429s (`state: rate-limited`). When set, Reddit uses the ScrapeCreators backend instead. |
 | `DATA_PATH` | `./data` | Host path mounted to `/data` in container |
 | `PORT` | `8080` | Host port mapped to container port 8080 |
 
 ### Evidence data flow
 
-- Engine saves `{slug}-raw-html.html` (agent prose) and `{slug}-raw.json` (raw `items_by_source`)
+- Engine saves `{slug}-raw-html(.html)` (agent prose) and `{slug}-raw(.json)` (raw `items_by_source`), possibly with a `-YYYY-MM-DD(-N)` date/counter suffix
+- The server pairs each HTML report with its sibling JSON via the shared date/counter suffix (see filename patterns above)
 - `items_by_source` in the JSON is `dict[str, list[SourceItem]]` — full flat corpus keyed by platform
 - Each `SourceItem` has `title`, `url`, `source`, `author`, `container`, `published_at`, `engagement` (platform-specific counters), `snippet`/`body`
 - Server injects evidence into HTML by parsing the JSON, grouping items by source, rendering cards with links and engagement — **no engine changes**
 
 ### Save filename patterns
 
+The engine writes a dated-counter filename whenever the base name is already taken, so a run may produce either form:
+
 | Emit mode | Pattern | Example |
 |-----------|---------|---------|
-| `--emit=html` | `{slug}-raw-html.html` | `ai-agents-raw-html.html` |
-| `--emit=json --json-profile=raw` | `{slug}-raw.json` | `ai-agents-raw.json` |
+| `--emit=html` | `{slug}-raw-html(.html)` or `{slug}-raw-html-YYYY-MM-DD(-N).html` | `ai-agents-raw-html.html`, `ai-agents-raw-html-2026-08-01-3.html` |
+| `--emit=json --json-profile=raw` | `{slug}-raw(.json)` or `{slug}-raw-YYYY-MM-DD(-N).json` | `ai-agents-raw.json`, `ai-agents-raw-2026-08-01-3.json` |
+
+**serve.py must handle both forms.** The HTML→JSON pair always shares the same date/counter suffix (`-raw-html` ↔ `-raw`). See `html_report_key()` / `json_name_for_html()` / `report_key_to_json_name()`. Until 2026-08-01 `serve.py` only matched the base form, so all dated reports were invisible to the UI.
 
 ### Common commands
 
@@ -278,6 +285,11 @@ release.yml → build .skill + .mcpb → GitHub Release with attestation
 7. **Nothing-solid**: Honest empty discovery result is a first-class outcome, not an error. Reports the closest sub-floor candidate as weak signal.
 8. **Slash command vs CLI**: Slash form passes no shell mechanics (`| pbcopy` invalid). CLI form is `python3 scripts/last30days.py ...` for scripting only.
 9. **Agent PATH for CLI-gated sources**: Digg, yt-dlp, etc. must be on the agent subprocess PATH, not merely on disk. `shutil.which` is the gate.
+10. **Engine must be in the build context**: `skills/last30days/` is required at image build time. It is NOT tracked on `main` — restore from a tag (`git checkout v3.18.4 -- skills/last30days`) or any `docker compose up --build` produces an image without the engine.
+11. **Dated report filenames**: server-side (`serve.py`) discovery must accept both `{slug}-raw-html.html` and `{slug}-raw-html-YYYY-MM-DD-N.html`. The HTML→JSON pairing uses the shared date/counter suffix. A miss means "no evidence / no reports" in the UI despite successful engine runs.
+12. **YouTube needs yt-dlp**: the engine marks YouTube `skipped-unconfigured` unless `yt-dlp` is on PATH. The Dockerfile installs it; if you run the engine on a host directly, install it there too.
+13. **Reddit 429**: keyless Reddit is rate-limited (`HTTP 429` → `state: rate-limited`). Set `SCRAPECREATORS_API_KEY` for reliable Reddit results.
+14. **SOURCES format**: comma-separated with no spaces (`reddit,x`), or the values are parsed as wrong keys and no sources appear in the UI.
 
 ---
 
@@ -299,11 +311,11 @@ release.yml → build .skill + .mcpb → GitHub Release with attestation
 | `skills/last30days/scripts/lib/dates.py` | 169 | Date utilities |
 | `skills/last30days/scripts/lib/freshness.py` | 566 | Claim re-verification |
 | `skills/last30days/scripts/lib/categories.py` | 289 | Category-peer subreddit map |
-| `scripts/serve.py` | 810 | Docker web server: index, source tabs, evidence injection, research API, delete |
-| `entrypoint.sh` | 30 | Container entrypoint: runs research (HTML+JSON) with --search flag, starts server |
-| `Dockerfile` | 10 | Python 3.12-slim container build |
-| `docker-compose.yaml` | 22 | Service definition: port 8080, SOURCES, RESEARCH_TOPIC, volume mount |
-| `.env` | 10 | Data path, port, research topic, SOURCES template |
+| `scripts/serve.py` | 818 | Docker web server: index, source tabs, evidence injection, research API, delete. Handles base *and* dated report filenames |
+| `entrypoint.sh` | 37 | Container entrypoint: runs research (HTML+JSON) with --search flag, starts server |
+| `Dockerfile` | 13 | Python 3.12-slim container build, installs uv + yt-dlp |
+| `docker-compose.yaml` | 22 | Service definition: port 8080, SOURCES, SCRAPECREATORS_API_KEY, RESEARCH_TOPIC, volume mount |
+| `.env` | 13 | Data path, port, research topic, SOURCES, SCRAPECREATORS_API_KEY template |
 
 ---
 
