@@ -11,13 +11,14 @@ Read this before changing anything here.
 ## What this repo is
 
 Upstream's repository at tag `v3.25.0` **plus the fork's container UI**. `git diff v3.25.0 HEAD`
-names 16 files, +1,437 lines; everything else is upstream's.
+names 17 files, +1,466 / −22 lines; everything else is upstream's.
 
 ```
 A  .env.example          A  entrypoint.sh           A  README.docker.md
 A  Dockerfile            A  scripts/serve.py        A  FORK.md
 A  docker-compose.yaml   A  MEMORY.md               M  .skillignore  (+4 lines)
 M  README.md + its six translations — one Why-this-fork block, mirrored in all seven
+D  .github/dependabot.yml — version updates off (the repo runs no automation)
 ```
 
 The engine under `skills/last30days/` is upstream's code and is **not** ours to edit:
@@ -150,6 +151,14 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 
 ## Gotchas
 
+0. **The public repo runs nothing.** Since 2026-09-21 it is public with **pull requests disabled**,
+   all nine upstream workflows set to `disabled_manually` (files kept so merges stay trivial),
+   Dependabot version updates off (`.github/dependabot.yml` deleted), and a
+   `fork it and support your fork` line in the README block + `FORK.md`. Re-disabling after a
+   GitHub-side reset: `PUT /repos/rpmalouin/last30days-skill/actions/workflows/<id>/disable` per
+   workflow — the repo-level Actions toggle needs `administration` scope, which this box's PAT
+   does not have, so that one is a UI click.
+
 1. **The source toggles are a hardcoded mirror of the engine's registry.** `SOURCE_TABS` /
    `SOURCE_COLORS` / `_detect_source` in `scripts/serve.py` now carry all 26 canonical lanes
    (2026-09-21). Re-derive them from `pipeline.MOCK_AVAILABLE_SOURCES` + `SEARCH_ALIAS` after every
@@ -212,6 +221,14 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 - **2026-09-21 — pushed the re-based `main` to `origin`** with `--force-with-lease`, plus the backup
   branch and tag. Verified from the remote: `refs/heads/main` = c9570bf, `backup/docker-ui-v3.18.4`
   and `docker-ui-v3.18.4` = aa5575a.
+- **2026-09-21 — added a Why-this-fork block to all seven READMEs** (English + translations, kept
+  element-neutral and mirrored so the parity test still passes). The landing page no longer reads as
+  upstream-only.
+- **2026-09-21 — went public** with a `fork it and support your fork` line, pull requests disabled,
+  the nine upstream workflows `disabled_manually`, and Dependabot off. It is a standalone repo
+  (`fork: false, parent: null`), so the visibility flip was a normal, reversible change rather than
+  a fork-network one-way door. A secrets sweep over all refs and all 12k objects came back clean
+  first — no live credential value appears in any commit.
 
 ## Open questions / next
 

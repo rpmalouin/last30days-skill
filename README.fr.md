@@ -9,6 +9,7 @@ L'upstream `last30days` est un skill d'agent : vous l'installez dans Claude Code
 - **Seul le wrapper est nouveau** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (un serveur HTTP en bibliotheque standard : champ de sujet, bascules par source, pages rapport et preuves, suppression), plus `.env.example`, `README.docker.md`, `FORK.md` et `MEMORY.md`.
 - **Le moteur n'est pas modifie** - `git diff <upstream-tag> HEAD -- skills/last30days/` est vide, et ce depot repose sur l'historique reel de l'upstream : une version upstream est donc une fusion, pas une recreation.
 - **La documentation de deploiement se trouve dans** `README.docker.md` : les reglages compose, les variables d'environnement, la recette de verification en bac a sable et le chemin de retour arriere.
+- **C'est un fork personnel** - les pull requests sont desactivees et aucun support n'est fourni : forkez-le et assumez votre propre fork.
 
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />

@@ -9,6 +9,7 @@
 - **新しいのはラッパーだけ** - `Dockerfile`、`docker-compose.yaml`、`entrypoint.sh`、`scripts/serve.py`（標準ライブラリのみの HTTP サーバー: トピック欄、ソースごとの切り替え、レポートと根拠のページ、削除）に加えて `.env.example`、`README.docker.md`、`FORK.md`、`MEMORY.md`。
 - **エンジンは手を加えていません** - `git diff <upstream-tag> HEAD -- skills/last30days/` は空で、このリポジトリは上流の実際の履歴の上にあるため、上流のリリースは再取得ではなくマージになります。
 - **デプロイの資料は** `README.docker.md` にあります: compose の設定項目、環境変数、サンドボックスでの検証手順、ロールバック手順。
+- **これは個人用のフォークです** - プルリクエストは無効で、サポートは行いません。フォークして自分のフォークを自分で維持してください。
 
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />

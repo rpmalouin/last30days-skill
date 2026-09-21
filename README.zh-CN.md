@@ -9,6 +9,7 @@
 - **只有封装层是新的** - `Dockerfile`、`docker-compose.yaml`、`entrypoint.sh`、`scripts/serve.py`（仅用标准库的 HTTP 服务：主题输入框、按来源开关、简报与证据页面、删除），以及 `.env.example`、`README.docker.md`、`FORK.md` 和 `MEMORY.md`。
 - **引擎未做改动** - `git diff <upstream-tag> HEAD -- skills/last30days/` 为空，而且本仓库位于上游真实历史之上，因此上游发版是一次合并，而不是重新快照。
 - **部署文档位于** `README.docker.md`：compose 参数、环境变量、沙箱验证流程和回滚方式。
+- **这是个人 fork** - 已关闭 pull request，不提供支持：请自行 fork 并自行维护。
 
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days——由 AI 智能体驱动、搜索真实用户而非编辑内容的搜索引擎" />

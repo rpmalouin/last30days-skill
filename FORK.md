@@ -44,6 +44,18 @@ swap the live container. The contract is small — flags, report filenames (base
 JSON shape, and the `</body>` injection anchor — so a bump is minutes when it holds, and obvious
 when it does not.
 
+## Support
+
+This is a personal fork. **Pull requests are disabled and no support is offered — fork it and
+support your fork.** Questions about the engine itself belong upstream, with
+[mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill); this repository only
+wraps it.
+
+Nothing runs in this repository's Actions: all nine upstream workflows are
+`disabled_manually` (the files are kept so upstream merges stay trivial) and Dependabot
+version updates are off (`.github/dependabot.yml` removed, and pull requests are disabled
+anyway).
+
 ## History
 
 - **2026-08-01**: fork bootstrapped as a squashed snapshot of engine `v3.18.4` plus the container
