@@ -145,7 +145,7 @@ Expect exactly that one failure (plus 3 skips) on a clean root-run. Anything els
 deliberate exception now: after the workflows were deleted (2026-09-21) the three upstream
 CI-contract files fail by design, because they assert on CI this fork does not have —
 `tests/test_changelog_workflow.py`, `tests/test_scorecard_workflow.py`,
-`tests/test_security_workflow.py` (14 failures between them). Those are upstream's tests for
+`tests/test_security_workflow.py` (16 between them: 7 + 5 + 4). Those are upstream's tests for
 upstream's CI, kept rather than deleted so the tree stays mergeable; read them as "CI is absent
 here", not as a regression.
 
@@ -153,6 +153,9 @@ Re-measured after the README fix (2026-09-21): **4,979 collected / 4,975 passed 
 root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 (`.pytest_cache/v/cache/nodeids` = 4,979, `lastfailed` = 1 node), because `addopts` in
 `pyproject.toml` (`-q --tb=short`) captured no counts line in the log.
+
+Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 collected /
+4,959 passed / 17 failed / 3 skipped** — the 16 CI-contract failures above plus the root artifact.
 
 ---
 
