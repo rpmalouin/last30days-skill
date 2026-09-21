@@ -2,6 +2,14 @@
 
 [English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [日本語](README.ja.md) | 简体中文
 
+## 为什么有这个 fork
+
+上游 `last30days` 是一个面向智能体的 skill：安装到 Claude Code、Codex、Cursor 等宿主中，然后在其中运行斜杠命令。这个 fork 用**自托管的 Web 应用**驱动同一个引擎 - 打开页面、输入主题、选择引擎的 26 个来源中要运行哪些，然后阅读带日期的 HTML 简报以及生成它的原始证据。
+
+- **只有封装层是新的** - `Dockerfile`、`docker-compose.yaml`、`entrypoint.sh`、`scripts/serve.py`（仅用标准库的 HTTP 服务：主题输入框、按来源开关、简报与证据页面、删除），以及 `.env.example`、`README.docker.md`、`FORK.md` 和 `MEMORY.md`。
+- **引擎未做改动** - `git diff <upstream-tag> HEAD -- skills/last30days/` 为空，而且本仓库位于上游真实历史之上，因此上游发版是一次合并，而不是重新快照。
+- **部署文档位于** `README.docker.md`：compose 参数、环境变量、沙箱验证流程和回滚方式。
+
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days——由 AI 智能体驱动、搜索真实用户而非编辑内容的搜索引擎" />
 </p>

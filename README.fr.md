@@ -2,6 +2,14 @@
 
 [English](README.md) | Français | [Deutsch](README.de.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
+## Pourquoi ce fork
+
+L'upstream `last30days` est un skill d'agent : vous l'installez dans Claude Code, Codex, Cursor ou un autre hote et lancez la commande slash depuis la. Ce fork pilote le meme moteur comme une **application web auto-hebergee** pour un homelab - ouvrir une page, saisir un sujet, choisir lesquelles des 26 sources doivent s'executer, puis lire le brief HTML date avec les preuves brutes qui l'ont produit.
+
+- **Seul le wrapper est nouveau** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (un serveur HTTP en bibliotheque standard : champ de sujet, bascules par source, pages rapport et preuves, suppression), plus `.env.example`, `README.docker.md`, `FORK.md` et `MEMORY.md`.
+- **Le moteur n'est pas modifie** - `git diff <upstream-tag> HEAD -- skills/last30days/` est vide, et ce depot repose sur l'historique reel de l'upstream : une version upstream est donc une fusion, pas une recreation.
+- **La documentation de deploiement se trouve dans** `README.docker.md` : les reglages compose, les variables d'environnement, la recette de verification en bac a sable et le chemin de retour arriere.
+
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />
 </p>

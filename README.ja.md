@@ -2,6 +2,14 @@
 
 [English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](README.es.md) | [Português (Brasil)](README.pt-BR.md) | 日本語 | [简体中文](README.zh-CN.md)
 
+## このフォークについて
+
+上流の `last30days` はエージェント向けの skill です。Claude Code、Codex、Cursor などのホストにインストールし、そこでスラッシュコマンドを実行します。このフォークは同じエンジンを**セルフホストの Web アプリ**として動かします - ページを開き、トピックを入力し、エンジンの 26 あるソースのうちどれを実行するかを選び、日付付きの HTML レポートをその根拠データとともに読みます。
+
+- **新しいのはラッパーだけ** - `Dockerfile`、`docker-compose.yaml`、`entrypoint.sh`、`scripts/serve.py`（標準ライブラリのみの HTTP サーバー: トピック欄、ソースごとの切り替え、レポートと根拠のページ、削除）に加えて `.env.example`、`README.docker.md`、`FORK.md`、`MEMORY.md`。
+- **エンジンは手を加えていません** - `git diff <upstream-tag> HEAD -- skills/last30days/` は空で、このリポジトリは上流の実際の履歴の上にあるため、上流のリリースは再取得ではなくマージになります。
+- **デプロイの資料は** `README.docker.md` にあります: compose の設定項目、環境変数、サンドボックスでの検証手順、ロールバック手順。
+
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />
 </p>

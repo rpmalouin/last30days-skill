@@ -10,16 +10,15 @@ Read this before changing anything here.
 
 ## What this repo is
 
-Upstream's repository at tag `v3.25.0` **plus the fork's container UI**. That is the whole
-delta — `git diff v3.25.0 HEAD` names 8 files (+1380 / −333); everything else is upstream's.
+Upstream's repository at tag `v3.25.0` **plus the fork's container UI**. `git diff v3.25.0 HEAD`
+names 16 files, +1,437 lines; everything else is upstream's.
 
 ```
 A  .env.example          A  entrypoint.sh           A  README.docker.md
 A  Dockerfile            A  scripts/serve.py        A  FORK.md
 A  docker-compose.yaml   A  MEMORY.md               M  .skillignore  (+4 lines)
+M  README.md + its six translations — one Why-this-fork block, mirrored in all seven
 ```
-
-(`README.md` and its six translations are upstream's again — see the test-suite section.)
 
 The engine under `skills/last30days/` is upstream's code and is **not** ours to edit:
 `git diff v3.25.0 -- skills/` must stay empty. Engine changes arrive by syncing (below).
@@ -45,10 +44,13 @@ Then, in order:
 2. Run the **sandbox verification recipe** (below) — one real research pass through the UI.
 3. Rebuild and swap the live container (a service restart — confirm with Ron first).
 
-Do not edit `docs/`, `tests/`, `.github/`, `CHANGELOG.md` or `README.md`: those are upstream's,
-and changes there turn every future merge into a fight. `README.md` in particular is asserted on
-by upstream's own doc-contract tests, so the fork's deployment documentation lives in
-`README.docker.md` instead. The fork's `.skillignore` delta (4 lines) is the remaining deliberate
+Do not edit `docs/`, `tests/`, `.github/` or `CHANGELOG.md`: those are upstream's, and changes
+there turn every future merge into a fight. `README.md` is a special case — it carries exactly one
+fork-owned block (the **Why this fork** section under the language nav line) and nothing else, and
+the same block is mirrored into the six translations, because
+`tests/test_readme_translations.py` asserts element parity across all seven files. A merge conflict
+there resolves to upstream's text plus our block. The fork's deployment documentation lives in
+`README.docker.md`. The fork's `.skillignore` delta (4 lines) is the remaining deliberate
 divergence — re-apply it if a merge conflicts.
 
 ---
