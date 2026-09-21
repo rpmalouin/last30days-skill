@@ -46,15 +46,16 @@ when it does not.
 
 ## Support
 
-This is a personal fork. **Pull requests are disabled and no support is offered — fork it and
-support your fork.** Questions about the engine itself belong upstream, with
+This is a personal fork, public since 2026-09-21. **Pull requests are disabled and no support is
+offered — fork it and support your fork.** Questions about the engine itself belong upstream, with
 [mvanhorn/last30days-skill](https://github.com/mvanhorn/last30days-skill); this repository only
 wraps it.
 
-Nothing runs in this repository's Actions: all nine upstream workflows are
-`disabled_manually` (the files are kept so upstream merges stay trivial) and Dependabot
-version updates are off (`.github/dependabot.yml` removed, and pull requests are disabled
-anyway).
+Nothing runs in this repository's Actions: the nine upstream workflow files were deleted
+(`git rm .github/workflows/*.yml`) after being disabled repo-side, and Dependabot version updates
+are off (`.github/dependabot.yml` removed, and pull requests are disabled anyway). Because those
+deletions are a deliberate divergence, an upstream merge that touches `.github/workflows/` resolves
+by taking upstream's file back if you want CI, or by keeping the deletion if you do not.
 
 ## History
 
@@ -67,3 +68,7 @@ anyway).
   Same day: the fork's source toggles were re-derived from the engine's canonical registry (26
   lanes), upstream's `README.md` was restored in favour of `README.docker.md`, the re-based `main`
   was force-pushed to `origin`, and the live container was rebuilt and swapped onto 3.25.0.
+- **2026-09-21 (later)**: the repository **went public**. A `Why this fork` block was added to all
+  seven READMEs, the support policy is stated (`fork it and support your fork`, pull requests
+  disabled), and the repository runs no automation — the nine upstream workflows and
+  `.github/dependabot.yml` were deleted after a secrets sweep over every ref came back clean.

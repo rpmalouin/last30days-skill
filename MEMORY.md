@@ -10,15 +10,16 @@ Read this before changing anything here.
 
 ## What this repo is
 
-Upstream's repository at tag `v3.25.0` **plus the fork's container UI**. `git diff v3.25.0 HEAD`
-names 17 files, +1,466 / −22 lines; everything else is upstream's.
+Upstream's repository at tag `v3.25.0` **plus the fork's container UI**, minus upstream's CI. The
+repository is **public** since 2026-09-21; `git diff v3.25.0 HEAD` names 26 files
+(+1,482 / −864): 8 added, 8 modified, 10 deleted.
 
 ```
 A  .env.example          A  entrypoint.sh           A  README.docker.md
 A  Dockerfile            A  scripts/serve.py        A  FORK.md
 A  docker-compose.yaml   A  MEMORY.md               M  .skillignore  (+4 lines)
 M  README.md + its six translations — one Why-this-fork block, mirrored in all seven
-D  .github/dependabot.yml — version updates off (the repo runs no automation)
+D  .github/workflows/*.yml (nine files) + .github/dependabot.yml — this fork runs no CI
 ```
 
 The engine under `skills/last30days/` is upstream's code and is **not** ours to edit:
@@ -140,7 +141,13 @@ The remaining failure is environment, not code:
 |---|---|
 | `test_setup_wizard.py::TestWriteApiKey::test_unwritable_target_returns_false` | The fixture `chmod 0o500`s a dir and expects the write to fail; as root it succeeds. Proven both ways (root: write OK; uid 1000: `PermissionError`, test passes). The container runs as root too (`User` empty, `id` → uid 0), so it is inherent to a root-run, fork or not |
 
-Expect exactly that one failure (plus 3 skips) on a clean root-run. Anything else is real.
+Expect exactly that one failure (plus 3 skips) on a clean root-run. Anything else is real — with one
+deliberate exception now: after the workflows were deleted (2026-09-21) the three upstream
+CI-contract files fail by design, because they assert on CI this fork does not have —
+`tests/test_changelog_workflow.py`, `tests/test_scorecard_workflow.py`,
+`tests/test_security_workflow.py` (14 failures between them). Those are upstream's tests for
+upstream's CI, kept rather than deleted so the tree stays mergeable; read them as "CI is absent
+here", not as a regression.
 
 Re-measured after the README fix (2026-09-21): **4,979 collected / 4,975 passed / 1 failed (the
 root artifact above) / 3 skipped**. The numbers come from pytest's own cache
@@ -151,13 +158,14 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 
 ## Gotchas
 
-0. **The public repo runs nothing.** Since 2026-09-21 it is public with **pull requests disabled**,
-   all nine upstream workflows set to `disabled_manually` (files kept so merges stay trivial),
-   Dependabot version updates off (`.github/dependabot.yml` deleted), and a
-   `fork it and support your fork` line in the README block + `FORK.md`. Re-disabling after a
-   GitHub-side reset: `PUT /repos/rpmalouin/last30days-skill/actions/workflows/<id>/disable` per
-   workflow — the repo-level Actions toggle needs `administration` scope, which this box's PAT
-   does not have, so that one is a UI click.
+0. **The public repo runs nothing.** Since 2026-09-21 it is **public**, with **pull requests
+   disabled**, no support offered (`fork it and support your fork` in the README block +
+   `FORK.md`), **all nine upstream workflows deleted** (`git rm .github/workflows/*.yml` — they had
+   first been set to `disabled_manually`, but a disabled workflow in a public repo is still visible
+   dead weight), and Dependabot off (`.github/dependabot.yml` removed). GitHub's web UI still shows
+   Issues enabled — turn that off in Settings → Features if the no-support line is to be consistent.
+   The repo-level Actions toggle needs `administration` scope, which this box's PAT lacks (403); the
+   per-workflow disable endpoint works (`PUT .../actions/workflows/<id>/disable`).
 
 1. **The source toggles are a hardcoded mirror of the engine's registry.** `SOURCE_TABS` /
    `SOURCE_COLORS` / `_detect_source` in `scripts/serve.py` now carry all 26 canonical lanes
