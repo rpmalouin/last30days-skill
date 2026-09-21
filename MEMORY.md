@@ -128,6 +128,11 @@ The remaining failure is environment, not code:
 
 Expect exactly that one failure (plus 3 skips) on a clean root-run. Anything else is real.
 
+Re-measured after the README fix (2026-09-21): **4,979 collected / 4,975 passed / 1 failed (the
+root artifact above) / 3 skipped**. The numbers come from pytest's own cache
+(`.pytest_cache/v/cache/nodeids` = 4,979, `lastfailed` = 1 node), because `addopts` in
+`pyproject.toml` (`-q --tb=short`) captured no counts line in the log.
+
 ---
 
 ## Gotchas
