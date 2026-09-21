@@ -25,7 +25,7 @@ the skill installed into an agent host. Everything the fork adds is that console
 | `Dockerfile` | `python:3.12-slim`, installs `uv` + `yt-dlp` (yt-dlp gates the YouTube lane) |
 | `docker-compose.yaml` | service definition (published port, `DATA_PATH` volume, `SOURCES`, `RESEARCH_TOPIC`, `SCRAPECREATORS_API_KEY`) |
 | `.env.example` | the documented knobs |
-| `README.md` | rewritten for this deployment (upstream's README is not the fork's README) |
+| `README.docker.md` | the fork's deployment doc. Upstream's `README.md` and its six translations are deliberately left untouched — upstream's doc-contract tests assert on them |
 | `.skillignore` | +4 lines excluding the fork's files from the skill package |
 | `MEMORY.md` | fork + deployment memory; read it before editing |
 

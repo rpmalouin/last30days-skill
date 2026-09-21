@@ -14,10 +14,12 @@ Upstream's repository at tag `v3.25.0` **plus the fork's container UI**. That is
 delta — `git diff v3.25.0 HEAD` names 8 files (+1380 / −333); everything else is upstream's.
 
 ```
-A  .env.example          A  docker-compose.yaml     M  README.md
-A  Dockerfile            A  entrypoint.sh           M  .skillignore  (+4 lines)
-A  MEMORY.md             A  scripts/serve.py
+A  .env.example          A  entrypoint.sh           A  README.docker.md
+A  Dockerfile            A  scripts/serve.py        A  FORK.md
+A  docker-compose.yaml   A  MEMORY.md               M  .skillignore  (+4 lines)
 ```
+
+(`README.md` and its six translations are upstream's again — see the test-suite section.)
 
 The engine under `skills/last30days/` is upstream's code and is **not** ours to edit:
 `git diff v3.25.0 -- skills/` must stay empty. Engine changes arrive by syncing (below).
@@ -43,9 +45,11 @@ Then, in order:
 2. Run the **sandbox verification recipe** (below) — one real research pass through the UI.
 3. Rebuild and swap the live container (a service restart — confirm with Ron first).
 
-Do not edit `docs/`, `tests/`, `.github/`, or `CHANGELOG.md`: those are upstream's, and
-changes there turn every future merge into a fight. The fork's `.skillignore` delta (4 lines)
-and rewritten `README.md` are deliberate divergences — re-apply them if a merge conflicts.
+Do not edit `docs/`, `tests/`, `.github/`, `CHANGELOG.md` or `README.md`: those are upstream's,
+and changes there turn every future merge into a fight. `README.md` in particular is asserted on
+by upstream's own doc-contract tests, so the fork's deployment documentation lives in
+`README.docker.md` instead. The fork's `.skillignore` delta (4 lines) is the remaining deliberate
+divergence — re-apply it if a merge conflicts.
 
 ---
 
@@ -108,19 +112,21 @@ Measured on v3.25.0: ~1.5s per emit, exit 0, 22 items across github+hackernews.
 ## Upstream test suite (baseline after the re-base)
 
 `uv run --python 3.12 --group dev pytest -q` — 4,979 collected. Measured 2026-09-21 on the
-re-based tree: **4,973 passed, 3 failed, 3 skipped**. All three failures are in upstream's own
-unmodified test files, and none is engine breakage:
+re-based tree: **4,973 passed, 3 failed, 3 skipped** on the first run. Two of those failures came
+from the fork having replaced `README.md` (upstream's own doc-contract tests assert on it:
+`test_doc_security_contract.py::test_preflight_permission_contract_is_documented` wants
+`--preflight` plus an exact sentence, `test_readme_translations.py` wants line 1 to be
+`# /last30days` with the six translations mirroring the structure). Decision taken 2026-09-21:
+upstream's `README.md` + translations were restored and the fork's deployment doc moved to
+`README.docker.md`, which removes both.
+
+The remaining failure is environment, not code:
 
 | Test | Cause |
 |---|---|
-| `test_doc_security_contract.py::test_preflight_permission_contract_is_documented` | The fork replaced `README.md`; upstream asserts `--preflight` and an exact sentence appear in it |
-| `test_readme_translations.py::test_readme_translations_preserve_structure_and_commands` | Same cause — upstream requires README line 1 to be `# /last30days` and the 6 translations to mirror it |
-| `test_setup_wizard.py::TestWriteApiKey::test_unwritable_target_returns_false` | **Environment, not code**: the test `chmod 0o500`s a dir and expects the write to fail; as root it succeeds. Proven both ways (root: write OK; uid 1000: `PermissionError`). The container runs as root too (`User` empty, `id` → uid 0) |
+| `test_setup_wizard.py::TestWriteApiKey::test_unwritable_target_returns_false` | The fixture `chmod 0o500`s a dir and expects the write to fail; as root it succeeds. Proven both ways (root: write OK; uid 1000: `PermissionError`, test passes). The container runs as root too (`User` empty, `id` → uid 0), so it is inherent to a root-run, fork or not |
 
-The first two disappear if upstream's `README.md` is restored and the fork's deployment README
-moves to its own file; upstream's README satisfies both assertions (`--preflight` ×2, the
-required sentence present). Keep this table honest — do not report a green suite while these
-two are ours.
+Expect exactly that one failure (plus 3 skips) on a clean root-run. Anything else is real.
 
 ---
 
@@ -164,6 +170,13 @@ two are ours.
 - **2026-09-21 — took upstream's whole tree** (tests, CI, pyproject, LICENSE come back). The fork
   gains 227 test files, so engine behaviour is checkable rather than assumed.
 - **2026-09-21 — verified in a selftest container on 127.0.0.1:18096**, live 8095 untouched.
+- **2026-09-21 — restored upstream's `README.md`** and moved the fork's deployment doc to
+  `README.docker.md`. Taking upstream's tree brought upstream's doc-contract tests with it, and
+  two of them assert on `README.md`; keeping a fork README there would have meant a permanently
+  red suite or permanently excluding tests — which would have thrown away the main reason for
+  taking the tree at all. The fork keeps its deployment doc, just not at the contested path.
+- **2026-09-21 — no live change, no push.** The v3.25.0 image is built and verified but staged;
+  the running container stays on 3.18.4 until Ron says otherwise.
 
 ## Open questions / next
 
