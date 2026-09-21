@@ -92,25 +92,32 @@ the injected Raw Evidence section.
 startup run. Note the startup research pass runs *before* the server binds, so a recreate costs
 about two minutes of UI downtime.
 
-**Live container carries the UI refactor** (swapped 2026-09-21 19:12Z): image
-`last30days-last30days:latest` → `f577bd88a923`, container `last30days-runner` recreated from this
-tree, `scripts/serve.py` inside the container is the committed blob (sha256 `6ebadf52…`). The
-recreate cost **2m10s** of UI downtime because the startup research pass runs before the server
-binds (two engine passes on `RESEARCH_TOPIC="AI agents"`, 57s + 62s, ScrapeCreators credits spent;
-report count went 9 → 10 as a new AI agents snapshot). Rollback without a rebuild:
-`docker tag last30days-last30days:prev-7f71a8d last30days-last30days:latest` (that tag holds the
-pre-refactor image `a96620cb34d2`) and recreate. Verified after the swap: 26 lanes, window pill
-`Trailing 30 Days: Aug 22 – Sep 21`, `10 reports indexed`, 3 grouped chip rows with 26 chips and
-zero inline colours, no `class="report"` or `last30days · ` left anywhere, AI agents rendering as
-ONE card with 7 snapshot badges, report page + evidence page both 200 (evidence neon styles 0).
-The scratch `last30days:selftest-ui` container/image used for pre-swap verification was removed
-afterwards; it is re-creatable with `docker build`.
+**Live container carries both UI passes** (swapped twice on 2026-09-21: 19:12Z for the temporal
+index, 19:26Z for the card/lane interaction pass). Current image
+`last30days-last30days:latest` → `e88530c5b1fb`, container `last30days-runner` recreated from this
+tree, `scripts/serve.py` inside the container is the committed blob (sha256 `33ffb987…`). Each
+recreate costs **2m10s** of UI downtime because the startup research pass runs before the server
+binds (two engine passes on `RESEARCH_TOPIC="AI agents"`, ~57s + ~57s, ScrapeCreators credits spent;
+report count went 9 → 10 → 11 as each swap stacked a new AI agents snapshot — the card now shows 8
+snapshot pills).
 
-**The card/lane interaction pass (below, second 2026-09-21 entry) is NOT in the live container yet**
-— the live image still serves the blob `6ebadf52…` (no pill selection state, no topic-scoped
-delete, no lane quick-toggles). Swapping it in is another `docker compose build` + recreate, i.e.
-the same ~2 min startup-pass downtime, and waits for Ron's go-ahead. A verified build of it runs as
-the scratch container `last30days-selftest-ui2` on `127.0.0.1:18096`.
+Rollback images kept for this stack (both still on disk, retained by the `*:prev-*` pattern in
+`PRUNE-RETENTION.md`) — retag and recreate, no rebuild:
+
+| Tag | Holds | What it is |
+|---|---|---|
+| `last30days-last30days:prev-aca820a` | `f577bd88a923` | temporal index, BEFORE the interaction pass |
+| `last30days-last30days:prev-7f71a8d` | `a96620cb34d2` | pre-UI-refactor (old cards + neon chips) |
+
+Verified on the live instance after the second swap: 26 lanes, `/api` payload shapes unchanged,
+window pill `Trailing 30 Days: Aug 22 – Sep 21`, `11 reports indexed`, 4 topic cards, one active
+pill per aggregated card and it is the newest, action rows `Report · Evidence · <exact ts>` on all
+cards, card Delete carrying every snapshot slug, 3 category rows with `[ALL]`/`[NONE]`, pill
+selection rewiring Report/Evidence/timestamp (17:28 pill → `…/ai-agents-raw-html-2026-09-21/`),
+`armed` → `delete?` → disarmed, SOCIAL `[none]` → 0 selected then `[all]` → 12, active pill computed
+`rgb(228,228,231)` / `rgb(9,9,11)`, report + evidence pages 200. Scratch `last30days:selftest-ui2`
+and its container/`/tmp/l30d-selftest2` were removed after the swap; both are re-creatable with
+`docker build` + the sandbox recipe above.
 
 The previous build's image was **not** retained — `docker compose build` moved the tag and the
 untagged image was reclaimed, so the v3.25.0 engine-bump build has no `local-prev-*` rollback tag.
