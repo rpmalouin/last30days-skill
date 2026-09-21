@@ -14,7 +14,7 @@ import sys
 import threading
 import time
 import urllib.parse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SOURCE_COLORS = {
@@ -43,17 +43,60 @@ SOURCE_TABS = [
     ("telegram", "Telegram"),
 ]
 
+# The engine's trailing window. Drives every temporal label the UI renders.
+WINDOW_DAYS = 30
+
+# Lanes grouped by source type for the toggle bar. Every lane in SOURCE_TABS must belong
+# to exactly one group — the import-time check below makes an engine bump that adds a lane
+# fail loudly instead of dropping it from the UI.
+SOURCE_GROUPS = [
+    ("Code & Dev", ["github", "hackernews", "jobs"]),
+    ("Social", ["reddit", "x", "youtube", "tiktok", "instagram", "bluesky",
+                "truthsocial", "threads", "pinterest", "xiaohongshu", "telegram",
+                "linkedin"]),
+    ("Articles & Papers", ["grounding", "perplexity", "arxiv", "techmeme", "digg",
+                           "trustpilot", "amazon", "meta_ads", "polymarket",
+                           "corpus", "dripstack"]),
+]
+_GROUP_OF = {key: group for group, keys in SOURCE_GROUPS for key in keys}
+_UNGROUPED_LANES = [key for key, _ in SOURCE_TABS if key not in _GROUP_OF]
+if _UNGROUPED_LANES:
+    sys.stderr.write(
+        f"[serve] WARNING: lanes missing from SOURCE_GROUPS (shown as 'Other'): "
+        f"{', '.join(_UNGROUPED_LANES)}\n"
+    )
+
+
+def _grouped_lanes(keys: list[str]) -> list[tuple[str, list[str]]]:
+    """Group lane keys in SOURCE_GROUPS order; anything ungrouped lands in 'Other'."""
+    known = set(keys)
+    out: list[tuple[str, list[str]]] = [
+        (group, [k for k in members if k in known]) for group, members in SOURCE_GROUPS
+    ]
+    out = [(group, members) for group, members in out if members]
+    stray = [k for k in keys if k not in _GROUP_OF]
+    if stray:
+        out.append(("Other", stray))
+    return out
+
 SOURCE_BAR_CSS = """
-.source-tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; margin-bottom: 1.5rem;
-  padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
-.source-tab { font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.04em; padding: 0.2rem 0.6rem; border-radius: 4px;
-  transition: opacity .2s ease; text-decoration: none; }
-.source-tab.on { color: #fff; }
-.source-tab.off { color: var(--fg-subtle); background: var(--bg-elev);
-  border: 1px solid var(--border); opacity: 0.5; }
-.source-tab.off:hover { opacity: 1; }
-.source-tab.sel { outline: 2px solid var(--accent); outline-offset: 1px; }"""
+.source-bar { margin-bottom: 2.25rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+.source-group-row { display: flex; align-items: baseline; gap: 0.9rem; padding: 0.4rem 0;
+  border-top: 1px solid var(--border-soft); }
+.source-group-row:first-child { border-top: 0; padding-top: 0; }
+.source-group-label { flex: 0 0 8.5rem; font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-subtle); }
+.source-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; flex: 1; }
+.source-tab { font-size: 11.5px; font-weight: 500; padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm); text-decoration: none; background: var(--chip-bg);
+  border: 1px solid var(--chip-border); color: var(--fg-muted);
+  transition: color .15s ease, border-color .15s ease, opacity .15s ease; }
+.source-tab.off { opacity: 0.4; border-style: dashed; color: var(--fg-subtle); }
+.source-tab.sel { color: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.source-tab[data-available="0"] { border-style: dashed; color: var(--fg-subtle); opacity: 0.55; }
+.source-tab.clickable { cursor: pointer; }
+.source-tab.clickable:hover { border-color: var(--border-hover); color: var(--fg); }
+.source-tab.sel.clickable:hover { color: var(--accent-soft); border-color: var(--accent); }"""
 
 
 def _detect_source(key: str) -> bool:
@@ -110,58 +153,99 @@ def render_source_tabs(
     selected: set[str] | None = None,
     onclick: str = "toggleSourceTab",
 ) -> str:
-    tabs = []
+    """Muted, grouped source bar. Every lane is one monochrome chip; the accent marks
+    the selected ones and dashed chips are lanes this container cannot reach."""
+    chips: dict[str, str] = {}
+    keys: list[str] = []
     for s in _list_sources():
-        on = active_sources is None or s["key"] in active_sources
-        style = f"background:{s['color']}" if on else ""
-        sel = selected is None or s["key"] in selected
-        cls = "source-tab on" if on else "source-tab off"
-        if sel and on:
-            cls += " sel"
+        key = s["key"]
+        keys.append(key)
+        on = active_sources is None or key in active_sources
+        sel = on and (selected is None or key in selected)
+        cls = "source-tab" + ("" if on else " off") + (" sel" if sel else "")
         if clickable:
-            extra = f' style="cursor:pointer;{style}" data-key="{s["key"]}" onclick="{onclick}(this)"'
-        else:
-            extra = f' style="{style}"'
-        tabs.append(f'<span class="{cls}"{extra}>{s["label"]}</span>')
-    return f'<div class="source-tabs">{"".join(tabs)}</div>'
+            cls += " clickable"
+        attrs = f' data-key="{key}" data-available="{1 if s["available"] else 0}"'
+        if clickable:
+            attrs += f' onclick="{onclick}(this)"'
+        note = "" if s["available"] else ' title="not available in this container"'
+        chips[key] = f'<span class="{cls}"{attrs}{note}>{html_escape(s["label"])}</span>'
+    rows = []
+    for group, members in _grouped_lanes(keys):
+        rows.append(
+            '<div class="source-group-row">'
+            f'<div class="source-group-label">{html_escape(group)}</div>'
+            f'<div class="source-tabs">{"".join(chips[k] for k in members)}</div>'
+            "</div>"
+        )
+    return f'<div class="source-bar">{"".join(rows)}</div>'
 
 
 INDEX_CSS = """
-:root { --bg: #0e0e10; --bg-elev: #18181b; --bg-card: #1e1e21; --fg: #fafafa;
-  --fg-muted: #a1a1aa; --fg-subtle: #71717a; --accent: #a855f7; --accent-soft: #c4b5fd;
-  --border: #27272a; --border-hover: #3f3f46; --max-w: 800px; --radius: 10px;
+:root { --bg: #0b0b0d; --bg-elev: #141417; --bg-card: #16161a; --fg: #f4f4f5;
+  --fg-muted: #a1a1aa; --fg-subtle: #71717a; --accent: #a855f7; --accent-soft: #d8b4fe;
+  --border: #27272a; --border-soft: #1f1f23; --border-hover: #3f3f46;
+  --chip-bg: #27272a; --chip-border: #3f3f46; --max-w: 840px; --radius: 12px;
+  --radius-sm: 6px;
   --reddit: #ff4500; --x: #1da1f2; --youtube: #ff0000; --github: #6e40c9;
   --hackernews: #ff6600; --digg: #000000; --polymarket: #0a0a23; --tiktok: #ff0050;
   --linkedin: #0a66c2; --arxiv: #b31b1b; --web: #2563eb; }
 @media (prefers-color-scheme: light) { :root { --bg: #ffffff; --bg-elev: #fafafa;
-  --bg-card: #f4f4f5; --fg: #18181b; --fg-muted: #52525b; --fg-subtle: #71717a;
-  --accent: #7c3aed; --border: #e4e4e7; --border-hover: #d4d4d8; } }
+  --bg-card: #f7f7f8; --fg: #18181b; --fg-muted: #52525b; --fg-subtle: #71717a;
+  --accent: #7c3aed; --accent-soft: #6d28d9; --border: #e4e4e7;
+  --border-soft: #f0f0f2; --border-hover: #d4d4d8;
+  --chip-bg: #f4f4f5; --chip-border: #e4e4e7; } }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
   font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
   system-ui, sans-serif; font-size: 17px; line-height: 1.65; }
 body { max-width: var(--max-w); margin: 0 auto; padding: 2rem 1.5rem 6rem; }
 h1 { font-size: 26px; font-weight: 700; margin: 0 0 0.25rem; }
-p.sub { color: var(--fg-subtle); margin: 0 0 2.5rem; font-size: 14px; }
-.report { display: flex; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
-  background: var(--bg-elev); border: 1px solid var(--border);
-  border-radius: var(--radius); text-decoration: none; color: var(--fg);
-  transition: border-color .15s ease; gap: 0.5rem; align-items: flex-start; }
-.report:hover { border-color: var(--accent); }
-.report .report-body { flex: 1; min-width: 0; }
-.report .title { font-weight: 600; font-size: 16px; margin-bottom: 0.3rem; }
-.report .title .accent { color: var(--accent); }
-.report .meta { font-size: 13px; color: var(--fg-subtle); }
-.report .links { margin-top: 0.5rem; display: flex; gap: 0.75rem; }
-.report .links a { font-size: 13px; color: var(--accent); text-decoration: none;
-  border: 1px solid var(--border); border-radius: 6px; padding: 0.2rem 0.7rem;
+p.sub { color: var(--fg-subtle); margin: 0 0 2rem; font-size: 13.5px; }
+.topbar { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.6rem 1.25rem; flex-wrap: wrap; padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border); margin-bottom: 1.75rem; }
+.wordmark { font-size: 19px; font-weight: 650; letter-spacing: -0.015em;
+  color: var(--fg); display: flex; align-items: baseline; gap: 0.45rem; }
+.wordmark .mark { color: var(--accent); font-size: 14px; }
+.window-pill { font-size: 12.5px; color: var(--fg-muted); background: var(--chip-bg);
+  border: 1px solid var(--chip-border); border-radius: 999px; padding: 0.22rem 0.7rem; }
+.window-pill strong { color: var(--fg); font-weight: 600; }
+.indexed { font-size: 12.5px; color: var(--fg-subtle); }
+.topic-card { display: flex; gap: 0.75rem; align-items: flex-start;
+  padding: 1.1rem 1.25rem; margin-bottom: 0.65rem; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: var(--radius);
   transition: border-color .15s ease; }
-.report .links a:hover { border-color: var(--accent); }
-.report .delete-btn { font-size: 13px; color: #ef4444; text-decoration: none;
-  border: 1px solid var(--border); border-radius: 6px; padding: 0.2rem 0.7rem;
+.topic-card:hover { border-color: var(--border-hover); }
+.topic-card .topic-body { flex: 1; min-width: 0; }
+.topic-title { display: block; font-size: 17px; font-weight: 600;
+  letter-spacing: -0.008em; color: var(--fg); text-decoration: none; }
+.topic-title:hover { color: var(--accent-soft); }
+.topic-meta { margin-top: 0.35rem; display: flex; gap: 0.4rem; flex-wrap: wrap;
+  align-items: baseline; font-size: 12.5px; color: var(--fg-subtle); }
+.topic-meta .sep { color: var(--border-hover); }
+.snapshots { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.7rem; }
+.snapshot { display: inline-flex; align-items: center; background: var(--chip-bg);
+  border: 1px solid var(--chip-border); border-radius: var(--radius-sm); font-size: 11.5px; }
+.snapshot a { color: var(--fg-muted); text-decoration: none; padding: 0.15rem 0.5rem; }
+.snapshot a:hover { color: var(--fg); }
+.snapshot .run { color: var(--fg-subtle); }
+.snapshot.latest { border-color: var(--accent); }
+.snapshot.latest a { color: var(--accent-soft); font-weight: 600; }
+.snapshot .snap-del { background: none; border: 0; color: var(--fg-subtle);
+  font-size: 10px; line-height: 1; cursor: pointer; padding: 0.25rem 0.4rem 0.25rem 0;
+  font-family: inherit; }
+.snapshot .snap-del:hover { color: #f87171; }
+.topic-links { margin-top: 0.7rem; display: flex; gap: 0.6rem; }
+.topic-links a { font-size: 13px; color: var(--accent); text-decoration: none;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.2rem 0.7rem;
+  transition: border-color .15s ease; }
+.topic-links a:hover { border-color: var(--accent); }
+.delete-btn { font-size: 13px; color: #ef4444; text-decoration: none;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.2rem 0.7rem;
   transition: all .15s ease; cursor: pointer; background: none; font-family: inherit;
   margin-left: auto; }
-.report .delete-btn:hover { border-color: #ef4444; background: rgba(239,68,68,0.08); }
+.delete-btn:hover { border-color: #ef4444; background: rgba(239,68,68,0.08); }
 .missing { text-align: center; padding: 4rem 0; color: var(--fg-subtle); }
 .missing h2 { font-size: 20px; color: var(--fg-muted); margin: 0 0 0.5rem; }
 .missing p { font-size: 14px; margin: 0; }
@@ -173,22 +257,28 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2.5rem; font-size: 14px; }
   border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.85rem;
   transition: all .15s ease; background: var(--bg-elev); }
 .controls a:hover, .controls a.active { border-color: var(--accent); color: var(--accent); }
-.research-bar { background: var(--bg-elev); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 1.25rem; margin-bottom: 2rem; }
-.research-bar .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; }
-.research-bar input { flex: 1; min-width: 200px; padding: 0.6rem 0.85rem;
-  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
-  color: var(--fg); font-size: 15px; outline: none; transition: border-color .15s ease; }
-.research-bar input:focus { border-color: var(--accent); }
-.research-bar input::placeholder { color: var(--fg-subtle); }
-.research-bar button { padding: 0.6rem 1.25rem; background: var(--accent);
-  border: none; border-radius: 6px; color: #fff; font-size: 15px; font-weight: 500;
-  cursor: pointer; transition: opacity .15s ease; white-space: nowrap; }
-.research-bar button:hover { opacity: 0.9; }
-.research-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
-.research-bar .status { margin-top: 0.75rem; font-size: 14px; color: var(--fg-muted);
+.command { display: flex; align-items: center; gap: 0.6rem; background: var(--bg-elev);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 0.4rem 0.4rem 0.4rem 0.85rem; transition: border-color .15s ease; }
+.command:focus-within { border-color: var(--accent); }
+.command .scope { flex: 0 0 auto; font-size: 10.5px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-soft);
+  background: var(--chip-bg); border: 1px solid var(--chip-border);
+  border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap; }
+.command input { flex: 1; min-width: 0; background: none; border: 0; outline: none;
+  color: var(--fg); font-family: inherit; font-size: 15px; padding: 0.5rem 0; }
+.command input::placeholder { color: var(--fg-subtle); }
+.command button { flex: 0 0 auto; padding: 0.5rem 1.1rem; background: var(--accent);
+  border: none; border-radius: var(--radius-sm); color: #fff; font-size: 14px;
+  font-weight: 500; font-family: inherit; cursor: pointer;
+  transition: opacity .15s ease; white-space: nowrap; }
+.command button:hover { opacity: 0.9; }
+.command button:disabled { opacity: 0.4; cursor: not-allowed; }
+.command-hint { margin: 0.6rem 0 2rem 0.15rem; font-size: 12.5px; color: var(--fg-subtle); }
+.command-status { margin: 0 0 1.5rem 0.15rem; font-size: 13.5px; color: var(--fg-muted);
   display: flex; gap: 0.5rem; align-items: center; }
-.research-bar .spinner { display: inline-block; width: 14px; height: 14px;
+.command-status:empty { display: none; }
+.spinner { display: inline-block; width: 14px; height: 14px;
   border: 2px solid var(--border); border-top-color: var(--accent);
   border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -197,7 +287,8 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2.5rem; font-size: 14px; }
   margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
 .source-badge { display: inline-block; font-size: 11px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.05em; padding: 0.2rem 0.55rem;
-  border-radius: 4px; color: #fff; }
+  border-radius: var(--radius-sm); background: var(--chip-bg); color: var(--fg-muted);
+  border: 1px solid var(--chip-border); }
 .item-card { background: var(--bg-card); border: 1px solid var(--border);
   border-radius: var(--radius); padding: 1rem 1.25rem; margin-bottom: 0.75rem;
   transition: border-color .15s ease; }
@@ -234,6 +325,26 @@ _RAW_HTML_RE = re.compile(
 _RAW_JSON_RE = re.compile(
     r"^(?P<topic>.+?)-raw(?P<date>(?:-\d{4}-\d{2}-\d{2}(?P<run>-\d+)?)?)\.json$"
 )
+# The tool's name belongs to the header, not to every card title: cards read "Postgres 18".
+_TITLE_PREFIX_RE = re.compile(r"^\s*#?\s*last30days\s*[·:•\-–]?\s*", re.IGNORECASE)
+_ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def clean_topic_title(title: str) -> str:
+    """Strip the '# last30days · ' prefix the engine puts in its own <title>."""
+    cleaned = _TITLE_PREFIX_RE.sub("", title or "").strip()
+    return cleaned or (title or "").strip()
+
+
+def _day_label(dt: datetime) -> str:
+    return f"{dt:%b} {dt.day}"
+
+
+def _trailing_window_label(days: int = WINDOW_DAYS, now: datetime | None = None) -> str:
+    """'Trailing 30 Days: Aug 22 – Sep 21' — the window every run covers."""
+    now = now or datetime.now(timezone.utc)
+    start = now - timedelta(days=days)
+    return f"Trailing {days} Days: {_day_label(start)} – {_day_label(now)}"
 
 
 def extract_title(html_path: Path) -> str:
@@ -277,6 +388,24 @@ def json_path_for_html(html_name: str, data_dir: Path) -> Path | None:
     return candidate if candidate.is_file() else None
 
 
+def _snapshot_of(html_name: str, mtime: str) -> dict:
+    """Temporal identity of one report file — the topic slug it belongs to, the day it
+    covers (the engine's filename date, else the file's mtime) and its run number.
+
+    The engine's ladder is `-YYYY-MM-DD` (1st run that day) then `-YYYY-MM-DD-N` for the
+    (N+1)th, so the filename suffix is one less than the human run number.
+    """
+    m = _RAW_HTML_RE.match(html_name)
+    topic = m.group("topic") if m else Path(html_name).stem
+    iso = _ISO_DATE_RE.search(m.group("date")) if m and m.group("date") else None
+    if iso:
+        day = _day_label(datetime.strptime(iso.group(0), "%Y-%m-%d").replace(tzinfo=timezone.utc))
+    else:
+        day = _day_label(datetime.fromisoformat(mtime))
+    run = int(m.group("run").lstrip("-")) + 1 if m and m.group("run") else 1
+    return {"topic": topic, "day": day, "run": run}
+
+
 def list_reports(data_dir: Path) -> list[dict]:
     reports = {}
     for p in sorted(data_dir.iterdir(), reverse=True):
@@ -297,6 +426,33 @@ def list_reports(data_dir: Path) -> list[dict]:
     return sorted(reports.values(), key=lambda r: r["mtime"], reverse=True)
 
 
+def list_topic_groups(data_dir: Path) -> list[dict]:
+    """One entry per topic: a query run repeatedly collapses into a single card whose
+    snapshots are the individual runs, newest first. View-data only — the report list
+    served by /api/reports keeps its own shape."""
+    groups: dict[str, dict] = {}
+    order: list[str] = []
+    for r in list_reports(data_dir):
+        snap = _snapshot_of(r["html"], r["mtime"])
+        topic = snap["topic"]
+        if topic not in groups:
+            order.append(topic)
+            groups[topic] = {
+                "topic": topic,
+                "title": clean_topic_title(r["title"]) or topic.replace("-", " "),
+                "snapshots": [],
+            }
+        groups[topic]["snapshots"].append({
+            "slug": r["slug"],
+            "day": snap["day"],
+            "run": snap["run"],
+            "mtime": r["mtime"],
+            "has_json": r["has_json"],
+            "size": r["size"],
+        })
+    return [groups[t] for t in order]
+
+
 def load_evidence_json(path: Path) -> dict | None:
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -307,44 +463,82 @@ def load_evidence_json(path: Path) -> dict | None:
 
 def render_index(data_dir: Path) -> str:
     reports = list_reports(data_dir)
-    rows = []
-    if reports:
-        for r in reports:
-            evidence_link = ""
-            if r["has_json"]:
-                evidence_link = f'<a href="/report/{r["slug"]}/evidence">Evidence</a>'
-            rows.append(
-                f'<div class="report">'
-                f'<div class="report-body">'
-                f'<a href="/report/{r["slug"]}/" style="text-decoration:none;color:var(--fg);display:block">'
-                f'<div class="title"><span class="accent">#</span> {html_escape(r["title"])}</div>'
-                f'<div class="meta">{html_escape(r["mtime"][:10])} &middot; {r["size"] // 1024} KB</div>'
-                f'<div class="links"><a href="/report/{r["slug"]}/" onclick="event.stopPropagation()">Report</a>{evidence_link}</div>'
-                f'</a>'
-                f'</div>'
-                f'<button class="delete-btn" onclick="deleteReport(\'{r["slug"]}\')">Delete</button>'
-                f'</div>'
+    cards = []
+    for g in list_topic_groups(data_dir):
+        snaps = g["snapshots"]                # newest first
+        latest = snaps[0]
+        meta = [
+            f'<span>Indexed {html_escape(latest["day"])}</span>',
+            '<span class="sep">&middot;</span>',
+            f'<span>Covering last {WINDOW_DAYS}d</span>',
+        ]
+        if len(snaps) > 1:
+            meta += [
+                '<span class="sep">&middot;</span>',
+                f'<span>{len(snaps)} snapshots</span>',
+            ]
+        links = [f'<a href="/report/{latest["slug"]}/">Report</a>']
+        if latest["has_json"]:
+            links.append(f'<a href="/report/{latest["slug"]}/evidence">Evidence</a>')
+
+        badges = ""
+        delete_btn = ""
+        if len(snaps) > 1:
+            chips = []
+            for i, s in enumerate(snaps):
+                cls = "snapshot latest" if i == 0 else "snapshot"
+                run = f' <span class="run">#{s["run"]}</span>' if s["run"] > 1 else ""
+                chips.append(
+                    f'<span class="{cls}">'
+                    f'<a href="/report/{s["slug"]}/" title="{html_escape(s["slug"])}">'
+                    f'{html_escape(s["day"])}{run}</a>'
+                    '<button class="snap-del" title="Delete this snapshot" '
+                    f"onclick=\"deleteReport('{s['slug']}')\">&times;</button>"
+                    "</span>"
+                )
+            badges = f'<div class="snapshots">{"".join(chips)}</div>'
+        else:
+            delete_btn = (
+                '<button class="delete-btn" '
+                f"onclick=\"deleteReport('{latest['slug']}')\">Delete</button>"
             )
-    else:
-        rows.append(
+
+        cards.append(
+            '<div class="topic-card">'
+            '<div class="topic-body">'
+            f'<a class="topic-title" href="/report/{latest["slug"]}/">{html_escape(g["title"])}</a>'
+            f'<div class="topic-meta">{"".join(meta)}</div>'
+            f"{badges}"
+            f'<div class="topic-links">{"".join(links)}</div>'
+            "</div>"
+            f"{delete_btn}"
+            "</div>"
+        )
+    if not cards:
+        cards.append(
             '<div class="missing">'
             "<h2>No reports yet</h2>"
             "<p>Run the engine to generate HTML reports,<br>or set RESEARCH_TOPIC on container start.</p>"
             "</div>"
         )
-    body = "\n".join(rows)
+    body = "\n".join(cards)
 
     with _research_lock:
         initial_running = _research_status["running"]
         initial_topic = _research_status["topic"]
 
-    research_bar = f"""<div class="research-bar">
-<div class="row">
-<input type="text" id="topic-input" placeholder="Enter research topic..." value="{html_escape(initial_topic)}">
+    lane_count = len(_list_sources())
+    initial_status = (
+        f'<span class="spinner"></span> Researching {html_escape(initial_topic)}...'
+        if initial_running else ""
+    )
+    research_bar = f"""<div class="command">
+<span class="scope">{WINDOW_DAYS}d</span>
+<input type="text" id="topic-input" placeholder="Research a topic across {lane_count} lanes..." value="{html_escape(initial_topic)}" autocomplete="off" spellcheck="false">
 <button id="research-btn" onclick="startResearch()">Research</button>
 </div>
-<div id="research-status" class="status">{'<span class="spinner"></span> Researching ' + html_escape(initial_topic) + '...' if initial_running else ''}</div>
-</div>"""
+<p class="command-hint">Trailing {WINDOW_DAYS} days &middot; every run covers the same window; re-running a topic stacks a new snapshot on its card.</p>
+<div id="research-status" class="command-status">{initial_status}</div>"""
 
     js = """<script>
 var selectedSources = null;
@@ -403,6 +597,12 @@ async function deleteReport(slug) {
   await fetch('/api/reports/' + slug, { method: 'DELETE' });
   location.reload();
 }
+var topicInput = document.getElementById('topic-input');
+if (topicInput) {
+  topicInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.repeat) { e.preventDefault(); startResearch(); }
+  });
+}
 (async function() {
   const data = await pollStatus();
   if (data.running) {
@@ -420,9 +620,12 @@ async function deleteReport(slug) {
 
     return f"""<!DOCTYPE html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>last30days Library</title><style>{INDEX_CSS}</style></head><body>
-<h1>last30days</h1>
-<p class="sub">Research library &middot; {len(reports)} report{"s" if len(reports) != 1 else ""}</p>
+<title>last30days</title><style>{INDEX_CSS}</style></head><body>
+<header class="topbar">
+<span class="wordmark"><span class="mark">&#9677;</span> last30days</span>
+<span class="window-pill">{html_escape(_trailing_window_label())}</span>
+<span class="indexed">{len(reports)} report{"s" if len(reports) != 1 else ""} indexed</span>
+</header>
 {research_bar}
 {render_source_tabs(clickable=True, selected=None)}
 {body}
@@ -442,7 +645,6 @@ def render_evidence_page(slug: str, data: dict, mtime: str) -> str:
         items = items_by_source[src]
         if not items:
             continue
-        color = SOURCE_COLORS.get(src.lower(), "var(--accent)")
         cards = []
         for item in items:
             title = item.get("title") or "(no title)"
@@ -467,7 +669,7 @@ def render_evidence_page(slug: str, data: dict, mtime: str) -> str:
 
         source_groups.append(f"""<div class="source-group" data-source="{html_escape(src)}">
 <div class="source-header">
-<span class="source-badge" style="background:{color}">{html_escape(src)}</span>
+<span class="source-badge">{html_escape(src)}</span>
 <span style="font-size:14px;color:var(--fg-subtle)">{len(cards)} item{"s" if len(cards)!=1 else ""}</span>
 </div>
 {''.join(cards)}
@@ -526,7 +728,6 @@ def render_evidence_inline(slug: str, data: dict) -> str:
         items = items_by_source[src]
         if not items:
             continue
-        color = SOURCE_COLORS.get(src.lower(), "var(--accent)")
         cards = []
         for item in items:
             title = item.get("title") or "(no title)"
@@ -551,7 +752,7 @@ def render_evidence_inline(slug: str, data: dict) -> str:
 
         source_groups.append(f"""<div class="source-group" data-source="{html_escape(src)}">
 <div class="source-header">
-<span class="source-badge" style="background:{color}">{html_escape(src)}</span>
+<span class="source-badge">{html_escape(src)}</span>
 <span style="font-size:14px;color:var(--fg-subtle)">{len(cards)} item{"s" if len(cards)!=1 else ""}</span>
 </div>
 {''.join(cards)}

@@ -92,6 +92,13 @@ the injected Raw Evidence section.
 startup run. Note the startup research pass runs *before* the server binds, so a recreate costs
 about two minutes of UI downtime.
 
+**The live container does not carry the UI refactor recorded below** (2026-09-21, later): it still
+serves the pre-refactor `scripts/serve.py` (`sha256 d64f8f7f…`, the old `# last30days · ` cards and
+neon chips). The refactor is committed on `main` only. Swapping it in means a rebuild plus a recreate
+— a service restart that costs the ~2 min startup pass, so it waits for Ron's go-ahead. A verified
+build of the new UI runs as the scratch container `last30days-selftest-ui` on
+`127.0.0.1:18096` (loopback only, over a copy of the reports in `/tmp/l30d-selftest/data`).
+
 The previous build's image was **not** retained — `docker compose build` moved the tag and the
 untagged image was reclaimed, so there is no `local-prev-*` rollback tag for this one. Roll back by
 rebuilding from the archived line (tag present locally and on the fork):
@@ -107,7 +114,8 @@ git switch --detach docker-ui-v3.18.4 && docker compose build \
 
 ```bash
 docker build -t last30days:selftest-<ver> .
-mkdir -p /tmp/l30d-selftest/data
+rm -rf /tmp/l30d-selftest/data && mkdir -p /tmp/l30d-selftest/data
+cp -a /appdata/last30days/data/. /tmp/l30d-selftest/data/   # optional: exercises the grouped index
 docker run -d --name last30days-selftest -p 127.0.0.1:18096:8080 \
   -v /tmp/l30d-selftest/data:/data -e LAST30DAYS_MEMORY_DIR=/data last30days:selftest-<ver>
 curl -s 127.0.0.1:18096/api/health
@@ -207,6 +215,18 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
 11. **Verification images accumulate.** `last30days:selftest-*` tags are scratch builds (about
    0.6 GB each) and are re-creatable with `docker build` from any commit; the live tag
    `last30days-last30days` is the only one the container follows.
+12. **Start the sandbox from a FRESH data copy.** `cp -a` onto an old `/tmp/l30d-selftest/data`
+   leaves earlier reports behind, so the engine's "first" run writes the dated ladder variant
+   (`-YYYY-MM-DD-1`) instead of the base name and the card counts look wrong. `rm -rf
+   /tmp/l30d-selftest/data` first (the recipe above now says so).
+13. **The report ladder's suffix is not the run number.** The engine writes
+   `{topic}-raw-html-YYYY-MM-DD` for the 1st run that day and `…-YYYY-MM-DD-N` for the (N+1)th,
+   so `-1` is the SECOND run: `_snapshot_of()` adds one to the suffix before displaying it as
+   `#2`. Two runs on one day otherwise render as two identical date badges.
+14. **The library index groups by topic, and that view-data is not the API.** `list_topic_groups()`
+   collapses every report key of one topic into a single card (`clean_topic_title()` strips the
+   engine's `last30days · ` prefix, `_snapshot_of()` supplies day/run). `/api/reports` and
+   `/api/sources` keep their original payload shape — do not push view-only fields into them.
 
 ---
 
@@ -244,6 +264,21 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   (`fork: false, parent: null`), so the visibility flip was a normal, reversible change rather than
   a fork-network one-way door. A secrets sweep over all refs and all 12k objects came back clean
   first — no live credential value appears in any commit.
+- **2026-09-21 — rebuilt the library UI around the trailing window** (fork-only, `scripts/serve.py`):
+  the top bar carries the wordmark, the active window (`Trailing 30 Days: <start> – <end>`, derived
+  from `WINDOW_DAYS`) and the indexed count; report cards became topic cards whose titles drop the
+  engine's `last30days · ` prefix and whose meta reads `Indexed <day> · Covering last 30d`; a topic
+  run repeatedly collapses into one card whose snapshots are date badges (newest first, per-snapshot
+  delete); the multicoloured chip bar became muted zinc-800 chips grouped `Code & Dev / Social /
+  Articles & Papers` with a single accent for selected lanes and dashed chips for lanes this
+  container cannot reach (`SOURCE_GROUPS`, checked against `SOURCE_TABS` at import); the research
+  input is one command box with the action embedded at its right edge and a `30d` scope chip, and
+  Enter submits. Engine-facing behaviour is untouched (`/api/reports` and `/api/sources` payloads
+  unchanged). Verified: 37 static assertions, then in-container end to end — two research passes on
+  one topic produced the base + dated report keys and rendered as ONE card with two snapshot
+  badges, report pages keep the injected Raw Evidence section, evidence pages render monochrome
+  badges. The JEV diff gate returned `mismatch` (noul 0.45) on the patch against the intent; the
+  diff is a large CSS/markup rewrite, so treat that as "review the diff, don't trust the label".
 
 ## Open questions / next
 
