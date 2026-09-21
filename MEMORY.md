@@ -105,6 +105,25 @@ Measured on v3.25.0: ~1.5s per emit, exit 0, 22 items across github+hackernews.
 
 ---
 
+## Upstream test suite (baseline after the re-base)
+
+`uv run --python 3.12 --group dev pytest -q` — 4,979 collected. Measured 2026-09-21 on the
+re-based tree: **4,973 passed, 3 failed, 3 skipped**. All three failures are in upstream's own
+unmodified test files, and none is engine breakage:
+
+| Test | Cause |
+|---|---|
+| `test_doc_security_contract.py::test_preflight_permission_contract_is_documented` | The fork replaced `README.md`; upstream asserts `--preflight` and an exact sentence appear in it |
+| `test_readme_translations.py::test_readme_translations_preserve_structure_and_commands` | Same cause — upstream requires README line 1 to be `# /last30days` and the 6 translations to mirror it |
+| `test_setup_wizard.py::TestWriteApiKey::test_unwritable_target_returns_false` | **Environment, not code**: the test `chmod 0o500`s a dir and expects the write to fail; as root it succeeds. Proven both ways (root: write OK; uid 1000: `PermissionError`). The container runs as root too (`User` empty, `id` → uid 0) |
+
+The first two disappear if upstream's `README.md` is restored and the fork's deployment README
+moves to its own file; upstream's README satisfies both assertions (`--preflight` ×2, the
+required sentence present). Keep this table honest — do not report a green suite while these
+two are ours.
+
+---
+
 ## Gotchas
 
 1. **The source toggles are hardcoded in the UI.** `SOURCE_TABS` / `SOURCE_COLORS` /
