@@ -362,6 +362,15 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   downtime, `prev-*` rollback tags, sandbox-with-a-fresh-copy). `FORK.md` gained the same console
   description in "Why the fork exists" + the history entry. The vault project notes
   (`Homelab/02 Projects/last30days/…`, container `notes`) were updated through Hatchdoor MCP.
+- **2026-09-21 — the console's checks now live in the repo**: `scripts/ui_selftest.py` (85 assertions,
+  stdlib only, `-v` for one line per check, `-k <group>` to filter). It builds a synthetic report
+  library in a temp dir — a singleton topic, a topic with three runs including the engine's same-day
+  ladder suffix, a run with no JSON sidecar — and covers the temporal labels, grouping, pills,
+  action rows, delete surface, lane bar, the warm-palette audit (every stylesheet colour must be a
+  `THEME_TOKENS` value) and the engine contract (flags, filename ladder, `/api` shapes, `</body>`
+  anchor), then starts the server on a loopback port and drives the HTTP surface including snapshot
+  and topic deletes. 85/85 on the host's Python 3.10 and inside the shipped image (3.12). This
+  replaces the ad-hoc `/tmp` harnesses.
 
 ## Open questions / next
 

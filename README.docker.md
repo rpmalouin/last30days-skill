@@ -213,7 +213,24 @@ uv run pytest --cov
 python3 scripts/serve.py /path/to/data --port 8080 --bind 127.0.0.1
 ```
 
-The fork ships no test suite of its own. The UI↔engine contract that matters when the engine is bumped — CLI flags, report filenames (base and dated ladder), the raw JSON `items_by_source` shape, and the `</body>` injection anchor — is small and is re-checked by hand, then by one real pass in a throwaway container.
+### Console self-test
+
+```bash
+python3 scripts/ui_selftest.py          # 85 checks, stdlib only, no network, no fixture data
+python3 scripts/ui_selftest.py -v       # one line per check
+python3 scripts/ui_selftest.py -k palette
+```
+
+It builds a synthetic report library in a temp directory — a singleton topic, a topic with three runs including the engine's same-day ladder suffix, and a run without a JSON sidecar — then asserts the temporal labels, the topic grouping, the snapshot pills, the action rows, the delete surface and the grouped lane bar, audits the warm palette (every colour in the stylesheet must be a `THEME_TOKENS` value, and no purple, raw red or cold neutral may survive anywhere), and covers the parts of the UI↔engine contract that break on an engine bump: the CLI flags, the report filenames (base and dated ladder), the `/api` payload shapes and the `</body>` injection anchor. Finally it starts the server on a loopback port and drives the HTTP surface, including a snapshot delete and a topic delete.
+
+Run it before rebuilding the container, and again inside the shipped image to cover its Python version:
+
+```bash
+docker run --rm --entrypoint /usr/local/bin/python3 \
+  -v "$PWD:/repo:ro" -w /repo last30days-last30days scripts/ui_selftest.py
+```
+
+The engine's own suite is separate: `uv run pytest`.
 
 ---
 
