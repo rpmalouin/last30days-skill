@@ -18,22 +18,29 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 SOURCE_COLORS = {
-    "reddit": "var(--reddit)", "x": "var(--x)", "twitter": "var(--x)",
-    "youtube": "var(--youtube)", "github": "var(--github)",
-    "hackernews": "var(--hackernews)", "hn": "var(--hackernews)",
-    "digg": "var(--digg)", "polymarket": "var(--polymarket)",
-    "tiktok": "var(--tiktok)", "linkedin": "var(--linkedin)",
-    "arxiv": "var(--arxiv)", "grounding": "var(--web)", "web": "var(--web)",
-    "stocktwits": "#006d77", "perplexity": "#21fb9a", "techmeme": "#333",
+    "reddit": "var(--reddit)", "x": "var(--x)", "youtube": "var(--youtube)",
+    "tiktok": "var(--tiktok)", "instagram": "#e1306c",
+    "hackernews": "var(--hackernews)", "bluesky": "#0285ff",
+    "truthsocial": "#544b8a", "polymarket": "var(--polymarket)",
+    "grounding": "var(--web)", "xiaohongshu": "#ff2442",
+    "github": "var(--github)", "perplexity": "#21fb9a", "threads": "#000000",
+    "pinterest": "#e60023", "digg": "var(--digg)", "arxiv": "var(--arxiv)",
+    "techmeme": "#333333", "trustpilot": "#00b67a", "amazon": "#ff9900",
+    "meta_ads": "#0866ff", "jobs": "#10b981", "linkedin": "var(--linkedin)",
+    "corpus": "#f59e0b", "dripstack": "#7c3aed", "telegram": "#229ed9",
 }
 
+# Keys mirror pipeline.MOCK_AVAILABLE_SOURCES (the engine's canonical source set).
 SOURCE_TABS = [
-    ("reddit", "Reddit"), ("x", "X"), ("youtube", "YouTube"),
-    ("tiktok", "TikTok"), ("linkedin", "LinkedIn"),
-    ("hackernews", "HN"), ("github", "GitHub"), ("digg", "Digg"),
-    ("polymarket", "Polymarket"), ("arxiv", "arXiv"), ("techmeme", "Techmeme"),
-    ("stocktwits", "StockTwits"), ("perplexity", "Perplexity"),
-    ("web", "Web"),
+    ("reddit", "Reddit"), ("x", "X"), ("youtube", "YouTube"), ("tiktok", "TikTok"),
+    ("instagram", "Instagram"), ("hackernews", "HN"), ("bluesky", "Bluesky"),
+    ("truthsocial", "Truth Social"), ("polymarket", "Polymarket"), ("grounding", "Web"),
+    ("xiaohongshu", "Xiaohongshu"), ("github", "GitHub"), ("perplexity", "Perplexity"),
+    ("threads", "Threads"), ("pinterest", "Pinterest"), ("digg", "Digg"),
+    ("arxiv", "arXiv"), ("techmeme", "Techmeme"), ("trustpilot", "Trustpilot"),
+    ("amazon", "Amazon"), ("meta_ads", "Meta Ads"), ("jobs", "Jobs"),
+    ("linkedin", "LinkedIn"), ("corpus", "Your files"), ("dripstack", "DripStack"),
+    ("telegram", "Telegram"),
 ]
 
 SOURCE_BAR_CSS = """
@@ -51,20 +58,37 @@ SOURCE_BAR_CSS = """
 
 def _detect_source(key: str) -> bool:
     checks = {
-        "reddit": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")) or True,
-        "x": lambda: bool(os.environ.get("XAI_API_KEY") or os.environ.get("XQUIK_API_KEY") or shutil.which("bird")),
-        "youtube": lambda: bool(shutil.which("yt-dlp")),
+        "reddit": lambda: True,
+        "x": lambda: bool(
+            (os.environ.get("AUTH_TOKEN") and os.environ.get("CT0"))
+            or os.environ.get("XAI_API_KEY") or os.environ.get("XQUIK_API_KEY")
+            or os.environ.get("X_BEARER_TOKEN")
+            or shutil.which("xurl") or shutil.which("bird") or shutil.which("grok")
+        ),
+        "youtube": lambda: bool(shutil.which("yt-dlp") or os.environ.get("SCRAPECREATORS_API_KEY")),
         "tiktok": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
-        "linkedin": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
+        "instagram": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
         "hackernews": lambda: True,
-        "github": lambda: bool(shutil.which("gh") or os.environ.get("GITHUB_TOKEN")),
-        "digg": lambda: bool(shutil.which("digg-pp-cli")),
+        "bluesky": lambda: bool(os.environ.get("BSKY_HANDLE") and os.environ.get("BSKY_APP_PASSWORD")),
+        "truthsocial": lambda: bool(os.environ.get("TRUTHSOCIAL_TOKEN")),
         "polymarket": lambda: True,
+        "grounding": lambda: True,
+        "xiaohongshu": lambda: bool(os.environ.get("XIAOHONGSHU_API_BASE")),
+        "github": lambda: True,
+        "perplexity": lambda: bool(os.environ.get("PERPLEXITY_API_KEY") or os.environ.get("OPENROUTER_API_KEY")),
+        "threads": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
+        "pinterest": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
+        "digg": lambda: bool(shutil.which("digg-pp-cli")),
         "arxiv": lambda: bool(shutil.which("arxiv-pp-cli")),
         "techmeme": lambda: bool(shutil.which("techmeme-pp-cli")),
-        "stocktwits": lambda: True,
-        "perplexity": lambda: bool(os.environ.get("PERPLEXITY_API_KEY")),
-        "web": lambda: True,
+        "trustpilot": lambda: bool(shutil.which("trustpilot-pp-cli")),
+        "amazon": lambda: bool(shutil.which("brightdata")),
+        "meta_ads": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
+        "jobs": lambda: True,
+        "linkedin": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY")),
+        "corpus": lambda: bool(os.environ.get("LAST30DAYS_CORPUS_DIRS")),
+        "dripstack": lambda: True,
+        "telegram": lambda: bool(os.environ.get("SCRAPECREATORS_API_KEY") and os.environ.get("TELEGRAM_SOURCES")),
     }
     return checks.get(key, lambda: False)()
 
