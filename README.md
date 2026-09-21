@@ -11,8 +11,7 @@ Upstream `last30days` is an agent skill: you install it into Claude Code, Codex,
 - **Deployment documentation lives in** `README.docker.md`: the console, its colour tokens, the routes and payloads, the compose knobs, the sandbox verification recipe and the rollback path. The console's own checks run from `scripts/ui_selftest.py` (85 assertions, standard library only).
 - **This is a personal fork** - pull requests are disabled and no support is offered: fork it and support your fork.
 
-<img width="832" height="986" alt="image" src="https://github.com/user-attachments/assets/9ed3ebdf-e467-4c81-87ef-6dffadfa497c" />
-
+<img width="832" height="986" alt="last30days research console: trailing-window header, lane toggles grouped by source type, and topic cards with selectable snapshot pills" src="media/console/console-index.png" />
 
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />

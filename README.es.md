@@ -11,6 +11,8 @@ El upstream `last30days` es una skill de agente: se instala en Claude Code, Code
 - **La documentación de despliegue está en** `README.docker.md`: la consola, sus tokens de color, las rutas y sus cargas útiles, los parámetros de compose, la receta de verificación en caja aislada y la ruta de reversión. Las comprobaciones de la consola se ejecutan con `scripts/ui_selftest.py` (85 comprobaciones, solo biblioteca estándar).
 - **Es un fork personal** - las pull requests están desactivadas y no se ofrece soporte: haz tu propio fork y mantenlo tú.
 
+<img width="832" height="986" alt="Consola de investigación last30days: cabecera con ventana móvil, interruptores de fuentes agrupados por tipo y tarjetas por tema con pastillas de instantánea seleccionables" src="media/console/console-index.png" />
+
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />
 </p>

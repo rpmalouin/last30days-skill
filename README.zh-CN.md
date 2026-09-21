@@ -11,6 +11,8 @@
 - **部署文档位于** `README.docker.md`：控制台、其颜色令牌、路由与负载、compose 参数、沙箱验证流程和回滚方式。控制台自身的检查由 `scripts/ui_selftest.py` 运行（85 项断言，仅标准库）。
 - **这是个人 fork** - 已关闭 pull request，不提供支持：请自行 fork 并自行维护。
 
+<img width="832" height="986" alt="last30days 检索控制台：时间窗口页头、按类型分组的来源开关，以及带可选快照胶囊的主题卡片" src="media/console/console-index.png" />
+
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days——由 AI 智能体驱动、搜索真实用户而非编辑内容的搜索引擎" />
 </p>

@@ -11,6 +11,8 @@
 - **デプロイの資料は** `README.docker.md` にあります: コンソール、そのカラートークン、ルートとペイロード、compose の設定項目、サンドボックスでの検証手順、ロールバック手順。コンソール自身のチェックは `scripts/ui_selftest.py` で実行します（85 項目、標準ライブラリのみ）。
 - **これは個人用のフォークです** - プルリクエストは無効で、サポートは行いません。フォークして自分のフォークを自分で維持してください。
 
+<img width="832" height="986" alt="last30days のリサーチコンソール: 期間を示すヘッダー、種類ごとにグループ化されたソース切り替え、選択できるスナップショットのピルを持つトピックカード" src="media/console/console-index.png" />
+
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />
 </p>

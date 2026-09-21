@@ -383,6 +383,14 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   + `test_version_consistency.py` pass (16 tests). **Editing rule**: the block is element-neutral —
   adding a fence, table, ordered item or external link to it means adding it to all seven, and the
   relative-link set differs per file by design (each translation links to the other six, not itself).
+- **2026-09-21 — the README screenshot is mirrored in all seven and vendored in the repo.** Ron added a
+  console screenshot to `README.md` from the GitHub web editor, which parked it in GitHub's
+  attachment store (`user-attachments/assets/9ed3ebdf-…`) and left it in the English landing page
+  only. It now lives at `media/console/console-index.png` (126,890 bytes, 832×986 PNG, byte-identical
+  to the attachment) with a relative `src`, referenced identically from all seven READMEs, each with
+  its own localized `alt`. `media/pr-assets/` is upstream's folder — fork art goes under
+  `media/console/`. **Re-shoot rule**: when the console UI changes, replace that PNG in the same
+  commit as the UI change (it is a fork-owned asset now, so keeping it current is this repo's job).
 
 ## Open questions / next
 
