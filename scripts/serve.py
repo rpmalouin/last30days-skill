@@ -17,19 +17,6 @@ import urllib.parse
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-SOURCE_COLORS = {
-    "reddit": "var(--reddit)", "x": "var(--x)", "youtube": "var(--youtube)",
-    "tiktok": "var(--tiktok)", "instagram": "#e1306c",
-    "hackernews": "var(--hackernews)", "bluesky": "#0285ff",
-    "truthsocial": "#544b8a", "polymarket": "var(--polymarket)",
-    "grounding": "var(--web)", "xiaohongshu": "#ff2442",
-    "github": "var(--github)", "perplexity": "#21fb9a", "threads": "#000000",
-    "pinterest": "#e60023", "digg": "var(--digg)", "arxiv": "var(--arxiv)",
-    "techmeme": "#333333", "trustpilot": "#00b67a", "amazon": "#ff9900",
-    "meta_ads": "#0866ff", "jobs": "#10b981", "linkedin": "var(--linkedin)",
-    "corpus": "#f59e0b", "dripstack": "#7c3aed", "telegram": "#229ed9",
-}
-
 # Keys mirror pipeline.MOCK_AVAILABLE_SOURCES (the engine's canonical source set).
 SOURCE_TABS = [
     ("reddit", "Reddit"), ("x", "X"), ("youtube", "YouTube"), ("tiktok", "TikTok"),
@@ -86,22 +73,23 @@ SOURCE_BAR_CSS = """
 .source-group-row:first-child { border-top: 0; padding-top: 0; }
 .source-group-label { flex: 0 0 8.5rem; display: flex; flex-wrap: wrap; gap: 0.1rem 0.3rem;
   align-items: baseline; font-size: 10.5px; font-weight: 600;
-  text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-subtle); }
+  text-transform: uppercase; letter-spacing: 0.09em; color: var(--label-fg); }
 .group-toggle { background: none; border: 0; padding: 0 0.05rem; font-family: inherit;
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
-  color: #71717a; cursor: pointer; transition: color .15s ease; }
-.group-toggle:hover { color: #d4d4d8; }
+  color: var(--label-fg); cursor: pointer; transition: color .15s ease; }
+.group-toggle:hover { color: #b9a98a; }
 .source-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; flex: 1; }
 .source-tab { font-size: 11.5px; font-weight: 500; padding: 0.2rem 0.55rem;
   border-radius: var(--radius-sm); text-decoration: none; background: var(--chip-bg);
-  border: 1px solid var(--chip-border); color: var(--fg-muted);
-  transition: color .15s ease, border-color .15s ease, opacity .15s ease; }
+  border: 1px solid var(--chip-border); color: var(--chip-fg);
+  transition: color .15s ease, border-color .15s ease, background .15s ease, opacity .15s ease; }
 .source-tab.off { opacity: 0.4; border-style: dashed; color: var(--fg-subtle); }
-.source-tab.sel { color: var(--accent-soft); border-color: var(--accent); font-weight: 600; }
+.source-tab.sel { background: var(--chip-sel-bg); color: var(--chip-sel-fg);
+  border-color: var(--chip-sel-border); font-weight: 600; }
 .source-tab[data-available="0"] { border-style: dashed; color: var(--fg-subtle); opacity: 0.55; }
 .source-tab.clickable { cursor: pointer; }
 .source-tab.clickable:hover { border-color: var(--border-hover); color: var(--fg); }
-.source-tab.sel.clickable:hover { color: var(--accent-soft); border-color: var(--accent); }"""
+.source-tab.sel.clickable:hover { color: var(--chip-sel-fg); border-color: var(--chip-sel-border); }"""
 
 
 def _detect_source(key: str) -> bool:
@@ -145,8 +133,7 @@ def _list_sources() -> list[dict]:
     raw = os.environ.get("SOURCES", "").strip()
     allowed = {s.strip().lower() for s in raw.split(",") if s.strip()} if raw else None
     return [
-        {"key": k, "label": label, "available": _detect_source(k),
-         "color": SOURCE_COLORS.get(k, "var(--accent)")}
+        {"key": k, "label": label, "available": _detect_source(k)}
         for k, label in SOURCE_TABS
         if allowed is None or k in allowed
     ]
@@ -192,22 +179,28 @@ def render_source_tabs(
     return f'<div class="source-bar">{"".join(rows)}</div>'
 
 
-INDEX_CSS = """
-:root { --bg: #0b0b0d; --bg-elev: #141417; --bg-card: #16161a; --fg: #f4f4f5;
-  --fg-muted: #a1a1aa; --fg-subtle: #71717a; --accent: #a855f7; --accent-soft: #d8b4fe;
-  --border: #27272a; --border-soft: #1f1f23; --border-hover: #3f3f46;
-  --chip-bg: #27272a; --chip-border: #3f3f46; --chip-border-soft: rgba(63,63,70,0.6);
-  --pill-active-bg: #e4e4e7; --pill-active-fg: #09090b; --max-w: 840px; --radius: 12px;
-  --radius-sm: 6px;
-  --reddit: #ff4500; --x: #1da1f2; --youtube: #ff0000; --github: #6e40c9;
-  --hackernews: #ff6600; --digg: #000000; --polymarket: #0a0a23; --tiktok: #ff0050;
-  --linkedin: #0a66c2; --arxiv: #b31b1b; --web: #2563eb; }
-@media (prefers-color-scheme: light) { :root { --bg: #ffffff; --bg-elev: #fafafa;
-  --bg-card: #f7f7f8; --fg: #18181b; --fg-muted: #52525b; --fg-subtle: #71717a;
-  --accent: #7c3aed; --accent-soft: #6d28d9; --border: #e4e4e7;
-  --border-soft: #f0f0f2; --border-hover: #d4d4d8;
-  --chip-bg: #f4f4f5; --chip-border: #e4e4e7; --chip-border-soft: rgba(212,212,216,0.6);
-  --pill-active-bg: #18181b; --pill-active-fg: #fafafa; } }
+# The warm dark design system's tokens. Shared by the index/evidence pages (via INDEX_CSS)
+# and by the evidence block injected into the engine's own report pages, where they override
+# the engine's palette — upstream's report CSS is cold-neutral with purple accents.
+THEME_TOKENS = """color-scheme: dark;
+  /* surfaces */
+  --bg: #14120f; --bg-elev: #1a1613; --bg-card: #1f1b16;
+  /* type */
+  --fg: #ede5d8; --fg-muted: #9e9282; --fg-subtle: #8a7e6f; --label-fg: #8f8270;
+  /* accent — burnished amber/gold, text-on-gold is dark espresso */
+  --accent: #d4a359; --accent-soft: #e3bd85; --accent-hover: #e0b26a; --accent-fg: #181512;
+  /* lines */
+  --border: #332c23; --border-soft: #2a241d; --border-hover: #443a2d; --brass: #544735;
+  /* source chips */
+  --chip-bg: #241f1a; --chip-border: #383027; --chip-fg: #8a7e6f;
+  --chip-sel-bg: #3a2f1e; --chip-sel-border: #d4a359; --chip-sel-fg: #ede5d8;
+  /* snapshot pills */
+  --snap-bg: #26211a; --snap-fg: #9e9282;
+  --pill-active-bg: #e6ded1; --pill-active-fg: #1c1813;
+  --danger: #c86446;
+  --max-w: 840px; --radius: 12px; --radius-sm: 6px;"""
+
+INDEX_CSS = ":root {" + THEME_TOKENS + """}
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
   font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
@@ -221,10 +214,10 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2rem; font-size: 13.5px; }
 .wordmark { font-size: 19px; font-weight: 650; letter-spacing: -0.015em;
   color: var(--fg); display: flex; align-items: baseline; gap: 0.45rem; }
 .wordmark .mark { color: var(--accent); font-size: 14px; }
-.window-pill { font-size: 12.5px; color: var(--fg-muted); background: var(--chip-bg);
-  border: 1px solid var(--chip-border); border-radius: 999px; padding: 0.22rem 0.7rem; }
+.window-pill { font-size: 12.5px; color: var(--fg-muted); background: var(--bg-elev);
+  border: 1px solid var(--border); border-radius: 999px; padding: 0.22rem 0.7rem; }
 .window-pill strong { color: var(--fg); font-weight: 600; }
-.indexed { font-size: 12.5px; color: var(--fg-subtle); }
+.indexed { font-size: 12.5px; color: var(--fg-muted); }
 .topic-card { display: flex; gap: 0.75rem; align-items: flex-start;
   padding: 1.1rem 1.25rem; margin-bottom: 0.65rem; background: var(--bg-card);
   border: 1px solid var(--border); border-radius: var(--radius);
@@ -235,12 +228,12 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2rem; font-size: 13.5px; }
   letter-spacing: -0.008em; color: var(--fg); text-decoration: none; }
 .topic-title:hover { color: var(--accent-soft); }
 .topic-meta { margin-top: 0.35rem; display: flex; gap: 0.4rem; flex-wrap: wrap;
-  align-items: baseline; font-size: 12.5px; color: var(--fg-subtle); }
+  align-items: baseline; font-size: 12.5px; color: var(--fg-muted); }
 .topic-meta .sep { color: var(--border-hover); }
 .snapshots { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.7rem; }
 .snapshot { display: inline-flex; align-items: center; border-radius: var(--radius-sm);
-  background: var(--chip-bg); color: var(--fg-muted);
-  border: 1px solid var(--chip-border-soft); font-size: 11.5px;
+  background: var(--snap-bg); color: var(--snap-fg);
+  border: 1px solid var(--border); font-size: 11.5px;
   transition: background .15s ease, color .15s ease, border-color .15s ease; }
 .snapshot .snap-body { background: none; border: 0; color: inherit; font: inherit;
   cursor: pointer; padding: 0.15rem 0.5rem; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
@@ -252,22 +245,23 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2rem; font-size: 13.5px; }
 .snapshot .snap-del { background: none; border: 0; color: var(--fg-subtle);
   font-size: 10px; line-height: 1; cursor: pointer; padding: 0.25rem 0.45rem 0.25rem 0;
   font-family: inherit; }
-.snapshot .snap-del:hover { color: #f87171; }
-.snapshot.armed { border-color: #f87171; }
-.snapshot.armed .snap-del { color: #f87171; font-weight: 600; letter-spacing: 0.02em; }
+.snapshot .snap-del:hover { color: var(--danger); }
+.snapshot.armed { border-color: var(--danger); }
+.snapshot.armed .snap-del { color: var(--danger); font-weight: 600; letter-spacing: 0.02em; }
 .topic-links { margin-top: 0.7rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .topic-links a { font-size: 13px; color: var(--accent); text-decoration: none;
   border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.2rem 0.7rem;
   transition: border-color .15s ease; }
 .topic-links a:hover { border-color: var(--accent); }
-.action-meta { font-size: 11px; color: var(--fg-subtle); background: var(--bg-elev);
+.action-meta { font-size: 11px; color: var(--fg-muted); background: var(--bg-elev);
   border: 1px solid var(--border-soft); border-radius: 999px; padding: 0.18rem 0.55rem;
   font-variant-numeric: tabular-nums; letter-spacing: 0.01em; white-space: nowrap; }
-.delete-btn { font-size: 13px; color: #ef4444; text-decoration: none;
+.delete-btn { font-size: 13px; color: var(--fg-subtle); text-decoration: none;
   border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.2rem 0.7rem;
-  transition: all .15s ease; cursor: pointer; background: none; font-family: inherit;
-  margin-left: auto; }
-.delete-btn:hover { border-color: #ef4444; background: rgba(239,68,68,0.08); }
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+  cursor: pointer; background: none; font-family: inherit; margin-left: auto; }
+.delete-btn:hover { color: var(--danger); border-color: var(--danger);
+  background: rgba(200,100,70,0.10); }
 .missing { text-align: center; padding: 4rem 0; color: var(--fg-subtle); }
 .missing h2 { font-size: 20px; color: var(--fg-muted); margin: 0 0 0.5rem; }
 .missing p { font-size: 14px; margin: 0; }
@@ -280,21 +274,22 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2rem; font-size: 13.5px; }
   transition: all .15s ease; background: var(--bg-elev); }
 .controls a:hover, .controls a.active { border-color: var(--accent); color: var(--accent); }
 .command { display: flex; align-items: center; gap: 0.6rem; background: var(--bg-elev);
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 0.4rem 0.4rem 0.4rem 0.85rem; transition: border-color .15s ease; }
-.command:focus-within { border-color: var(--accent); }
+  border: 1px solid var(--brass); border-radius: var(--radius);
+  padding: 0.4rem 0.4rem 0.4rem 0.85rem;
+  transition: border-color .15s ease, box-shadow .15s ease; }
+.command:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px var(--brass); }
 .command .scope { flex: 0 0 auto; font-size: 10.5px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-soft);
-  background: var(--chip-bg); border: 1px solid var(--chip-border);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+  background: var(--bg-card); border: 1px solid var(--brass);
   border-radius: 999px; padding: 0.18rem 0.5rem; white-space: nowrap; }
 .command input { flex: 1; min-width: 0; background: none; border: 0; outline: none;
   color: var(--fg); font-family: inherit; font-size: 15px; padding: 0.5rem 0; }
 .command input::placeholder { color: var(--fg-subtle); }
 .command button { flex: 0 0 auto; padding: 0.5rem 1.1rem; background: var(--accent);
-  border: none; border-radius: var(--radius-sm); color: #fff; font-size: 14px;
-  font-weight: 500; font-family: inherit; cursor: pointer;
-  transition: opacity .15s ease; white-space: nowrap; }
-.command button:hover { opacity: 0.9; }
+  border: none; border-radius: var(--radius-sm); color: var(--accent-fg); font-size: 14px;
+  font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background .15s ease; white-space: nowrap; }
+.command button:hover { background: var(--accent-hover); color: var(--accent-fg); }
 .command button:disabled { opacity: 0.4; cursor: not-allowed; }
 .command-hint { margin: 0.6rem 0 2rem 0.15rem; font-size: 12.5px; color: var(--fg-subtle); }
 .command-status { margin: 0 0 1.5rem 0.15rem; font-size: 13.5px; color: var(--fg-muted);
@@ -821,18 +816,21 @@ function filterSource(el) {
     return r
 
 
-INLINE_EVIDENCE_CSS = """
-.evidence-section { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); }
+INLINE_EVIDENCE_CSS = (
+    ":root {" + THEME_TOKENS + "}\n"
+    # Mirror the tokens into the light-scheme query so the engine's light block cannot win
+    # on a browser that prefers light: the injected style is last, so these rule sets win.
+    "@media (prefers-color-scheme: light) { :root {" + THEME_TOKENS + "} }\n"
+    """.evidence-section { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); }
 .evidence-section h2 { font-size: 20px; font-weight: 600; margin: 0 0 0.25rem; color: var(--fg); }
 .evidence-section p.sub { margin: 0 0 1.5rem; font-size: 14px; }
-""" + SOURCE_BAR_CSS + """
-.evidence-toggle { font-size: 13px; color: var(--accent); cursor: pointer;
+""" + SOURCE_BAR_CSS + """.evidence-toggle { font-size: 13px; color: var(--accent); cursor: pointer;
   border: 1px solid var(--border); border-radius: 6px; padding: 0.35rem 0.85rem;
   background: var(--bg-elev); margin-bottom: 1.5rem; display: inline-block; }
 .evidence-toggle:hover { border-color: var(--accent); }
 .evidence-items { display: none; }
 .evidence-items.open { display: block; }
-"""
+""")
 
 
 def render_evidence_inline(slug: str, data: dict) -> str:

@@ -256,6 +256,20 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
    `DELETE /api/reports/<slug>` per snapshot — cardinality stays in the markup, so the HTTP API is
    unchanged. Category `[all]`/`[none]` (`groupLanes`) mutate the same `selectedSources` map as the
    chips, via `ensureSelection()`: `null` still means "every lane".
+16. **The theme lives in `THEME_TOKENS`, and the engine's report pages need it injected.** Every
+   colour is a token; `THEME_TOKENS` is the single source and is emitted twice — in `INDEX_CSS`'s
+   `:root` for the index/evidence pages, and at the top of `INLINE_EVIDENCE_CSS` for the block
+   injected into the engine's own report pages. Upstream's report CSS declares its own cold/purple
+   palette (`--accent: #a855f7`, `#7c3aed`, `#6d28d9`) but is 100% variable-driven with no hardcoded
+   colour declarations, so our later `:root` block (the injected `<style>` is the last in the
+   document) repaints the whole page warm — including inside `@media (prefers-color-scheme: light)`,
+   which is why the tokens are mirrored there too. Never edit the engine's HTML on disk to retheme
+   it; the purple strings that stay in the served page are dead declarations, and the computed
+   colours are all warm. The app is now warm-dark ONLY (the light-scheme block was dropped).
+17. **`/api/sources` returns `{key, label, available}` — the `color` field is gone** (with
+   `SOURCE_COLORS` and the per-source CSS brand vars). It only ever fed the pre-refactor neon chips,
+   nothing else consumed it (no test, script or doc enumerated it), and it carried the last purple
+   in the tree. `/api/reports` is still the original six keys.
 
 ---
 
@@ -320,6 +334,21 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   (selection rewires hrefs + timestamp, arm/disarm, `[none]` → 0 selected then `[all]` → 12, snapshot
   deletion and topic deletion actually removing files, live data untouched), computed-style checks in
   both themes, and a rebuilt container serving the same markup.
+- **2026-09-21 — rethemed to a warm dark design system** (`THEME_TOKENS`, `scripts/serve.py`):
+  espresso root `#14120f`, roasted-umber cards `#1f1b16` with brass `#332c23` borders, linen text
+  `#ede5d8`, sandstone muted/timestamps `#9e9282`; the purple accent is replaced by burnished gold
+  `#d4a359` (espresso `#181512` text on the Research button, hover `#e0b26a`); the search box border
+  and its 2px focus ring are brass `#544735`; source chips are `#241f1a`/`#383027`/`#8a7e6f` at rest
+  and `#3a2f1e`/`#d4a359`/`#ede5d8` when selected; category labels and `[all]`/`[none]` are `#8f8270`;
+  snapshot pills are `#26211a`/`#9e9282` inactive and parchment `#e6ded1`/`#1c1813` active; Delete is
+  muted at rest and terracotta `#c86446` on hover. Two deliberate side effects: the light-scheme
+  block is gone (one warm-dark theme), and the dead `color` field left `/api/sources` (gotcha 17).
+  Verified: 81 static assertions incl. a palette audit proving every colour in the stylesheet is in
+  the warm set and no purple/red/cold neutral survives anywhere in the file; computed-style checks in
+  a browser for every token above, plus real mouse-hover reads (Delete → `rgb(200,100,70)`, button →
+  `rgb(224,178,106)`) and a real click into the search box (`rgb(212,163,89)` border + `rgb(84,71,53)`
+  2px ring); the engine's report pages repaint warm because the injected `:root` wins by source order
+  (accent resolves to `#d4a359` on a page whose own stylesheet declares `#a855f7`).
 
 ## Open questions / next
 
