@@ -84,8 +84,13 @@ SOURCE_BAR_CSS = """
 .source-group-row { display: flex; align-items: baseline; gap: 0.9rem; padding: 0.4rem 0;
   border-top: 1px solid var(--border-soft); }
 .source-group-row:first-child { border-top: 0; padding-top: 0; }
-.source-group-label { flex: 0 0 8.5rem; font-size: 10.5px; font-weight: 600;
+.source-group-label { flex: 0 0 8.5rem; display: flex; flex-wrap: wrap; gap: 0.1rem 0.3rem;
+  align-items: baseline; font-size: 10.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.09em; color: var(--fg-subtle); }
+.group-toggle { background: none; border: 0; padding: 0 0.05rem; font-family: inherit;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em;
+  color: #71717a; cursor: pointer; transition: color .15s ease; }
+.group-toggle:hover { color: #d4d4d8; }
 .source-tabs { display: flex; gap: 0.3rem; flex-wrap: wrap; flex: 1; }
 .source-tab { font-size: 11.5px; font-weight: 500; padding: 0.2rem 0.55rem;
   border-radius: var(--radius-sm); text-decoration: none; background: var(--chip-bg);
@@ -172,9 +177,15 @@ def render_source_tabs(
         chips[key] = f'<span class="{cls}"{attrs}{note}>{html_escape(s["label"])}</span>'
     rows = []
     for group, members in _grouped_lanes(keys):
+        toggles = (
+            f'<button class="group-toggle" type="button" '
+            f'onclick="groupLanes(this, true)">[all]</button>'
+            f'<button class="group-toggle" type="button" '
+            f'onclick="groupLanes(this, false)">[none]</button>'
+        )
         rows.append(
             '<div class="source-group-row">'
-            f'<div class="source-group-label">{html_escape(group)}</div>'
+            f'<div class="source-group-label"><span>{html_escape(group)}</span>{toggles}</div>'
             f'<div class="source-tabs">{"".join(chips[k] for k in members)}</div>'
             "</div>"
         )
@@ -185,7 +196,8 @@ INDEX_CSS = """
 :root { --bg: #0b0b0d; --bg-elev: #141417; --bg-card: #16161a; --fg: #f4f4f5;
   --fg-muted: #a1a1aa; --fg-subtle: #71717a; --accent: #a855f7; --accent-soft: #d8b4fe;
   --border: #27272a; --border-soft: #1f1f23; --border-hover: #3f3f46;
-  --chip-bg: #27272a; --chip-border: #3f3f46; --max-w: 840px; --radius: 12px;
+  --chip-bg: #27272a; --chip-border: #3f3f46; --chip-border-soft: rgba(63,63,70,0.6);
+  --pill-active-bg: #e4e4e7; --pill-active-fg: #09090b; --max-w: 840px; --radius: 12px;
   --radius-sm: 6px;
   --reddit: #ff4500; --x: #1da1f2; --youtube: #ff0000; --github: #6e40c9;
   --hackernews: #ff6600; --digg: #000000; --polymarket: #0a0a23; --tiktok: #ff0050;
@@ -194,7 +206,8 @@ INDEX_CSS = """
   --bg-card: #f7f7f8; --fg: #18181b; --fg-muted: #52525b; --fg-subtle: #71717a;
   --accent: #7c3aed; --accent-soft: #6d28d9; --border: #e4e4e7;
   --border-soft: #f0f0f2; --border-hover: #d4d4d8;
-  --chip-bg: #f4f4f5; --chip-border: #e4e4e7; } }
+  --chip-bg: #f4f4f5; --chip-border: #e4e4e7; --chip-border-soft: rgba(212,212,216,0.6);
+  --pill-active-bg: #18181b; --pill-active-fg: #fafafa; } }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
   font-family: Inter, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto,
@@ -225,22 +238,31 @@ p.sub { color: var(--fg-subtle); margin: 0 0 2rem; font-size: 13.5px; }
   align-items: baseline; font-size: 12.5px; color: var(--fg-subtle); }
 .topic-meta .sep { color: var(--border-hover); }
 .snapshots { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.7rem; }
-.snapshot { display: inline-flex; align-items: center; background: var(--chip-bg);
-  border: 1px solid var(--chip-border); border-radius: var(--radius-sm); font-size: 11.5px; }
-.snapshot a { color: var(--fg-muted); text-decoration: none; padding: 0.15rem 0.5rem; }
-.snapshot a:hover { color: var(--fg); }
+.snapshot { display: inline-flex; align-items: center; border-radius: var(--radius-sm);
+  background: var(--chip-bg); color: var(--fg-muted);
+  border: 1px solid var(--chip-border-soft); font-size: 11.5px;
+  transition: background .15s ease, color .15s ease, border-color .15s ease; }
+.snapshot .snap-body { background: none; border: 0; color: inherit; font: inherit;
+  cursor: pointer; padding: 0.15rem 0.5rem; border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .snapshot .run { color: var(--fg-subtle); }
-.snapshot.latest { border-color: var(--accent); }
-.snapshot.latest a { color: var(--accent-soft); font-weight: 600; }
+.snapshot:hover { border-color: var(--border-hover); }
+.snapshot.active { background: var(--pill-active-bg); color: var(--pill-active-fg);
+  border-color: transparent; font-weight: 500; }
+.snapshot.active .run { color: var(--pill-active-fg); opacity: 0.65; }
 .snapshot .snap-del { background: none; border: 0; color: var(--fg-subtle);
-  font-size: 10px; line-height: 1; cursor: pointer; padding: 0.25rem 0.4rem 0.25rem 0;
+  font-size: 10px; line-height: 1; cursor: pointer; padding: 0.25rem 0.45rem 0.25rem 0;
   font-family: inherit; }
 .snapshot .snap-del:hover { color: #f87171; }
-.topic-links { margin-top: 0.7rem; display: flex; gap: 0.6rem; }
+.snapshot.armed { border-color: #f87171; }
+.snapshot.armed .snap-del { color: #f87171; font-weight: 600; letter-spacing: 0.02em; }
+.topic-links { margin-top: 0.7rem; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
 .topic-links a { font-size: 13px; color: var(--accent); text-decoration: none;
   border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.2rem 0.7rem;
   transition: border-color .15s ease; }
 .topic-links a:hover { border-color: var(--accent); }
+.action-meta { font-size: 11px; color: var(--fg-subtle); background: var(--bg-elev);
+  border: 1px solid var(--border-soft); border-radius: 999px; padding: 0.18rem 0.55rem;
+  font-variant-numeric: tabular-nums; letter-spacing: 0.01em; white-space: nowrap; }
 .delete-btn { font-size: 13px; color: #ef4444; text-decoration: none;
   border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.2rem 0.7rem;
   transition: all .15s ease; cursor: pointer; background: none; font-family: inherit;
@@ -338,6 +360,12 @@ def clean_topic_title(title: str) -> str:
 
 def _day_label(dt: datetime) -> str:
     return f"{dt:%b} {dt.day}"
+
+
+def _exact_ts(iso: str) -> str:
+    """'Sep 21, 2026 · 14:10' — the exact run timestamp shown on a card's active snapshot."""
+    dt = datetime.fromisoformat(iso)
+    return f"{dt:%b} {dt.day}, {dt.year} · {dt:%H:%M}"
 
 
 def _trailing_window_label(days: int = WINDOW_DAYS, now: datetime | None = None) -> str:
@@ -477,31 +505,38 @@ def render_index(data_dir: Path) -> str:
                 '<span class="sep">&middot;</span>',
                 f'<span>{len(snaps)} snapshots</span>',
             ]
-        links = [f'<a href="/report/{latest["slug"]}/">Report</a>']
-        if latest["has_json"]:
-            links.append(f'<a href="/report/{latest["slug"]}/evidence">Evidence</a>')
-
-        badges = ""
-        delete_btn = ""
-        if len(snaps) > 1:
-            chips = []
-            for i, s in enumerate(snaps):
-                cls = "snapshot latest" if i == 0 else "snapshot"
-                run = f' <span class="run">#{s["run"]}</span>' if s["run"] > 1 else ""
-                chips.append(
-                    f'<span class="{cls}">'
-                    f'<a href="/report/{s["slug"]}/" title="{html_escape(s["slug"])}">'
-                    f'{html_escape(s["day"])}{run}</a>'
-                    '<button class="snap-del" title="Delete this snapshot" '
-                    f"onclick=\"deleteReport('{s['slug']}')\">&times;</button>"
-                    "</span>"
-                )
-            badges = f'<div class="snapshots">{"".join(chips)}</div>'
-        else:
-            delete_btn = (
-                '<button class="delete-btn" '
-                f"onclick=\"deleteReport('{latest['slug']}')\">Delete</button>"
+        pills = []
+        for i, s in enumerate(snaps):
+            active = " active" if i == 0 else ""
+            run = f' <span class="run">#{s["run"]}</span>' if s["run"] > 1 else ""
+            pills.append(
+                f'<span class="snapshot{active}" data-slug="{s["slug"]}" '
+                f'data-ts="{html_escape(_exact_ts(s["mtime"]))}" '
+                f'data-has-json="{1 if s["has_json"] else 0}">'
+                f'<button class="snap-body" type="button" '
+                f'aria-pressed="{"true" if i == 0 else "false"}" '
+                f'title="{html_escape(s["slug"])}" onclick="selectSnapshot(this)">'
+                f'{html_escape(s["day"])}{run}</button>'
+                '<button class="snap-del" type="button" title="Delete this snapshot" '
+                'aria-label="Delete this snapshot" onclick="deleteSnapshot(this)">&times;</button>'
+                "</span>"
             )
+        badges = f'<div class="snapshots">{"".join(pills)}</div>' if len(snaps) > 1 else ""
+
+        ev_style = "" if latest["has_json"] else ' style="display:none"'
+        action = (
+            '<div class="topic-links">'
+            f'<a class="act-report" href="/report/{latest["slug"]}/">Report</a>'
+            f'<a class="act-evidence" href="/report/{latest["slug"]}/evidence"{ev_style}>Evidence</a>'
+            f'<span class="action-meta">{html_escape(_exact_ts(latest["mtime"]))}</span>'
+            "</div>"
+        )
+        # The top-right Delete covers the whole card: every snapshot of the topic.
+        slugs_attr = html_escape(json.dumps([s["slug"] for s in snaps]))
+        delete_btn = (
+            f'<button class="delete-btn" data-slugs="{slugs_attr}" '
+            f'data-count="{len(snaps)}" onclick="deleteTopic(this)">Delete</button>'
+        )
 
         cards.append(
             '<div class="topic-card">'
@@ -509,7 +544,7 @@ def render_index(data_dir: Path) -> str:
             f'<a class="topic-title" href="/report/{latest["slug"]}/">{html_escape(g["title"])}</a>'
             f'<div class="topic-meta">{"".join(meta)}</div>'
             f"{badges}"
-            f'<div class="topic-links">{"".join(links)}</div>'
+            f"{action}"
             "</div>"
             f"{delete_btn}"
             "</div>"
@@ -543,14 +578,17 @@ def render_index(data_dir: Path) -> str:
     js = """<script>
 var selectedSources = null;
 
+function ensureSelection() {
+  if (selectedSources !== null) return;
+  selectedSources = {};
+  document.querySelectorAll('.source-tabs .source-tab').forEach(function(t) {
+    selectedSources[t.getAttribute('data-key')] = true;
+  });
+}
+
 function toggleSourceTab(el) {
   var key = el.getAttribute('data-key');
-  if (selectedSources === null) {
-    selectedSources = {};
-    document.querySelectorAll('.source-tabs .source-tab').forEach(function(t) {
-      selectedSources[t.getAttribute('data-key')] = true;
-    });
-  }
+  ensureSelection();
   if (selectedSources[key]) {
     delete selectedSources[key];
     el.classList.remove('sel');
@@ -558,6 +596,91 @@ function toggleSourceTab(el) {
     selectedSources[key] = true;
     el.classList.add('sel');
   }
+}
+
+/* [all] / [none] next to a category label: every lane in that row. */
+function groupLanes(el, on) {
+  var row = el.closest('.source-group-row');
+  if (!row) return;
+  ensureSelection();
+  row.querySelectorAll('.source-tab').forEach(function(t) {
+    var key = t.getAttribute('data-key');
+    if (on) {
+      selectedSources[key] = true;
+      t.classList.add('sel');
+    } else {
+      delete selectedSources[key];
+      t.classList.remove('sel');
+    }
+  });
+}
+
+/* Pill body selects the snapshot; Report/Evidence follow the selection. */
+function selectSnapshot(el) {
+  var pill = el.closest('.snapshot');
+  var card = el.closest('.topic-card');
+  if (!pill || !card) return;
+  card.querySelectorAll('.snapshot').forEach(function(p) {
+    var on = p === pill;
+    p.classList.toggle('active', on);
+    var body = p.querySelector('.snap-body');
+    if (body) body.setAttribute('aria-pressed', on ? 'true' : 'false');
+    if (p.getAttribute('data-armed') === '1') disarmSnapshot(p);
+  });
+  var slug = pill.getAttribute('data-slug');
+  var hasJson = pill.getAttribute('data-has-json') === '1';
+  var title = card.querySelector('.topic-title');
+  var report = card.querySelector('.act-report');
+  var evidence = card.querySelector('.act-evidence');
+  var meta = card.querySelector('.action-meta');
+  if (title) title.setAttribute('href', '/report/' + slug + '/');
+  if (report) report.setAttribute('href', '/report/' + slug + '/');
+  if (evidence) {
+    evidence.setAttribute('href', '/report/' + slug + '/evidence');
+    evidence.style.display = hasJson ? '' : 'none';
+  }
+  if (meta) meta.textContent = pill.getAttribute('data-ts');
+}
+
+function disarmSnapshot(pill) {
+  pill.setAttribute('data-armed', '0');
+  pill.classList.remove('armed');
+  var btn = pill.querySelector('.snap-del');
+  if (btn) btn.textContent = '\\u00d7';
+}
+
+/* The small x arms on the first click and deletes on the second; 6s later it disarms. */
+function deleteSnapshot(el) {
+  var pill = el.closest('.snapshot');
+  if (!pill) return;
+  if (pill.getAttribute('data-armed') !== '1') {
+    pill.setAttribute('data-armed', '1');
+    pill.classList.add('armed');
+    el.textContent = 'delete?';
+    setTimeout(function() {
+      if (pill.getAttribute('data-armed') === '1') disarmSnapshot(pill);
+    }, 6000);
+    return;
+  }
+  var slug = pill.getAttribute('data-slug');
+  fetch('/api/reports/' + slug, { method: 'DELETE' }).then(function() { location.reload(); });
+}
+
+/* Card-level Delete covers the whole card: one snapshot, or every snapshot of the topic. */
+function deleteTopic(el) {
+  var card = el.closest('.topic-card');
+  if (!card) return;
+  var slugs = [];
+  try { slugs = JSON.parse(el.getAttribute('data-slugs') || '[]'); } catch (err) { slugs = []; }
+  if (!slugs.length) return;
+  var msg = slugs.length > 1
+    ? 'Delete topic and all ' + slugs.length + ' snapshots?'
+    : 'Delete this report and its evidence?';
+  if (!confirm(msg)) return;
+  el.disabled = true;
+  Promise.all(slugs.map(function(s) {
+    return fetch('/api/reports/' + s, { method: 'DELETE' });
+  })).then(function() { location.reload(); });
 }
 
 async function pollStatus() {
@@ -591,11 +714,6 @@ async function startResearch() {
       location.reload();
     }
   }, 2000);
-}
-async function deleteReport(slug) {
-  if (!confirm('Delete this report and its evidence?')) return;
-  await fetch('/api/reports/' + slug, { method: 'DELETE' });
-  location.reload();
 }
 var topicInput = document.getElementById('topic-input');
 if (topicInput) {

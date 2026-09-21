@@ -106,6 +106,12 @@ ONE card with 7 snapshot badges, report page + evidence page both 200 (evidence 
 The scratch `last30days:selftest-ui` container/image used for pre-swap verification was removed
 afterwards; it is re-creatable with `docker build`.
 
+**The card/lane interaction pass (below, second 2026-09-21 entry) is NOT in the live container yet**
+— the live image still serves the blob `6ebadf52…` (no pill selection state, no topic-scoped
+delete, no lane quick-toggles). Swapping it in is another `docker compose build` + recreate, i.e.
+the same ~2 min startup-pass downtime, and waits for Ron's go-ahead. A verified build of it runs as
+the scratch container `last30days-selftest-ui2` on `127.0.0.1:18096`.
+
 The previous build's image was **not** retained — `docker compose build` moved the tag and the
 untagged image was reclaimed, so the v3.25.0 engine-bump build has no `local-prev-*` rollback tag.
 Roll back that one by rebuilding from the archived line (tag present locally and on the fork):
@@ -234,6 +240,15 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
    collapses every report key of one topic into a single card (`clean_topic_title()` strips the
    engine's `last30days · ` prefix, `_snapshot_of()` supplies day/run). `/api/reports` and
    `/api/sources` keep their original payload shape — do not push view-only fields into them.
+15. **Interaction model of a topic card (client-side only, no endpoint of its own).** Pill bodies
+   (`selectSnapshot`) switch the card's active snapshot and rewire `.act-report` / `.act-evidence` /
+   `.topic-title` plus the `.action-meta` timestamp from the pill's `data-*`; the small `×`
+   (`deleteSnapshot`) arms on the first click (`delete?`, class `armed`) and deletes on the second,
+   disarming after 6s or as soon as another pill is selected. The top-right Delete
+   (`deleteTopic`) reads `data-slugs` (a JSON array of every snapshot of the topic) and issues one
+   `DELETE /api/reports/<slug>` per snapshot — cardinality stays in the markup, so the HTTP API is
+   unchanged. Category `[all]`/`[none]` (`groupLanes`) mutate the same `selectedSources` map as the
+   chips, via `ensureSelection()`: `null` still means "every lane".
 
 ---
 
@@ -286,6 +301,18 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   badges, report pages keep the injected Raw Evidence section, evidence pages render monochrome
   badges. The JEV diff gate returned `mismatch` (noul 0.45) on the patch against the intent; the
   diff is a large CSS/markup rewrite, so treat that as "review the diff, don't trust the label".
+- **2026-09-21 — card and lane interaction pass** (same file): snapshot pills got an explicit
+  active state (`bg-zinc-200 / text-zinc-950 / font-medium`, inactive `bg-zinc-800 / text-zinc-400 /
+  border zinc-700/60`, both via `--pill-active-*` tokens with a light-mode inversion) and a pill body
+  that SELECTS instead of navigating, so `Report`/`Evidence` open the selected run; the `×` became
+  arm-then-confirm (no native dialog); the top-right `Delete` came back to aggregated cards and is
+  topic-scoped (`data-slugs` → one DELETE per snapshot, prompt `Delete topic and all N snapshots?`);
+  every card's action row is now `Report · Evidence · <exact timestamp>` (`.action-meta`, from
+  `_exact_ts`, container-TZ); each category label carries muted 11px `[all]`/`[none]` lane toggles.
+  Verified: 70 static assertions, DOM-level interaction tests against a COPY of the reports
+  (selection rewires hrefs + timestamp, arm/disarm, `[none]` → 0 selected then `[all]` → 12, snapshot
+  deletion and topic deletion actually removing files, live data untouched), computed-style checks in
+  both themes, and a rebuilt container serving the same markup.
 
 ## Open questions / next
 
