@@ -92,16 +92,23 @@ the injected Raw Evidence section.
 startup run. Note the startup research pass runs *before* the server binds, so a recreate costs
 about two minutes of UI downtime.
 
-**The live container does not carry the UI refactor recorded below** (2026-09-21, later): it still
-serves the pre-refactor `scripts/serve.py` (`sha256 d64f8f7f…`, the old `# last30days · ` cards and
-neon chips). The refactor is committed on `main` only. Swapping it in means a rebuild plus a recreate
-— a service restart that costs the ~2 min startup pass, so it waits for Ron's go-ahead. A verified
-build of the new UI runs as the scratch container `last30days-selftest-ui` on
-`127.0.0.1:18096` (loopback only, over a copy of the reports in `/tmp/l30d-selftest/data`).
+**Live container carries the UI refactor** (swapped 2026-09-21 19:12Z): image
+`last30days-last30days:latest` → `f577bd88a923`, container `last30days-runner` recreated from this
+tree, `scripts/serve.py` inside the container is the committed blob (sha256 `6ebadf52…`). The
+recreate cost **2m10s** of UI downtime because the startup research pass runs before the server
+binds (two engine passes on `RESEARCH_TOPIC="AI agents"`, 57s + 62s, ScrapeCreators credits spent;
+report count went 9 → 10 as a new AI agents snapshot). Rollback without a rebuild:
+`docker tag last30days-last30days:prev-7f71a8d last30days-last30days:latest` (that tag holds the
+pre-refactor image `a96620cb34d2`) and recreate. Verified after the swap: 26 lanes, window pill
+`Trailing 30 Days: Aug 22 – Sep 21`, `10 reports indexed`, 3 grouped chip rows with 26 chips and
+zero inline colours, no `class="report"` or `last30days · ` left anywhere, AI agents rendering as
+ONE card with 7 snapshot badges, report page + evidence page both 200 (evidence neon styles 0).
+The scratch `last30days:selftest-ui` container/image used for pre-swap verification was removed
+afterwards; it is re-creatable with `docker build`.
 
 The previous build's image was **not** retained — `docker compose build` moved the tag and the
-untagged image was reclaimed, so there is no `local-prev-*` rollback tag for this one. Roll back by
-rebuilding from the archived line (tag present locally and on the fork):
+untagged image was reclaimed, so the v3.25.0 engine-bump build has no `local-prev-*` rollback tag.
+Roll back that one by rebuilding from the archived line (tag present locally and on the fork):
 
 ```bash
 git switch --detach docker-ui-v3.18.4 && docker compose build \
