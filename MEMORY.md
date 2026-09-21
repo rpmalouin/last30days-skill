@@ -83,8 +83,19 @@ the injected Raw Evidence section.
 | Auth | **none** on the UI. LAN-reachable; no Caddy/cloudflared route publishes it |
 | Cost | a UI-triggered run spends ScrapeCreators credits while that key is set |
 
-At the time of writing the running container is still on the **v3.18.4** image; the v3.25.0
-image is built and verified (`last30days:selftest-v3.25.0`) but not yet swapped in.
+**Running 3.25.0** since 2026-09-21 (container recreated onto the rebuilt tag): engine reports
+`3.25.0` inside the container, 26 lanes served, the 7 pre-existing reports still listed plus the
+startup run. Note the startup research pass runs *before* the server binds, so a recreate costs
+about two minutes of UI downtime.
+
+The previous build's image was **not** retained — `docker compose build` moved the tag and the
+untagged image was reclaimed, so there is no `local-prev-*` rollback tag for this one. Roll back by
+rebuilding from the archived line (tag present locally and on the fork):
+
+```bash
+git switch --detach docker-ui-v3.18.4 && docker compose build \
+  && docker compose create --force-recreate && docker start last30days-runner
+```
 
 ---
 
@@ -137,12 +148,12 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 
 ## Gotchas
 
-1. **The source toggles are hardcoded in the UI.** `SOURCE_TABS` / `SOURCE_COLORS` /
-   `_detect_source` in `scripts/serve.py` list 14 lanes. The engine supports more (bluesky,
-   instagram, threads, pinterest, truthsocial, telegram, amazon, meta_ads, dripstack, xhs) and
-   gains more every release — those lanes cannot be toggled until that list is extended, and the
-   availability probes do not know the newer credentials (`X_BEARER_TOKEN`, Grok CLI,
-   `BRIGHTDATA`, `XIAOHONGSHU_API_BASE`). This gap predates the re-base; it is inherited.
+1. **The source toggles are a hardcoded mirror of the engine's registry.** `SOURCE_TABS` /
+   `SOURCE_COLORS` / `_detect_source` in `scripts/serve.py` now carry all 26 canonical lanes
+   (2026-09-21). Re-derive them from `pipeline.MOCK_AVAILABLE_SOURCES` + `SEARCH_ALIAS` after every
+   engine bump instead of extending by hand. `stocktwits` is deliberately absent — the engine's
+   `parse_search_flag` rejects it, so any toggle subset containing it aborted the run, and a single
+   deselection was enough to trigger that.
 2. **`container_name: last30days-runner` in the compose blocks a second instance.** A
    `docker compose -p selftest up` collides with the live container — use `docker run` for
    sandboxes, or drop `container_name`.
@@ -161,6 +172,15 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 9. Upstream's `AGENTS.md` is kept as-is; the code-review-graph block the installer had written
    there was dropped deliberately so it cannot conflict on every merge. CRG still works through
    Hermes's global MCP config, and the repo-local `opencode.jsonc` still carries it.
+10. **The keyless web floor is unreachable from this network.** The `grounding` (Web) lane reports
+   `source_status: unreachable` with 0 items — measured in the sandbox and in the live startup run,
+   whose log carries `Some sources failed: grounding`. That is the engine's honest empty, not a UI
+   fault; the badge stays green because the engine's own gate is `keyless_web_allowed`, true for a
+   non-native-search host. `web` is not a lane key any more — tabs use canonical `grounding`
+   (`web` is only a `--search` alias).
+11. **Verification images accumulate.** `last30days:selftest-*` tags are scratch builds (about
+   0.6 GB each) and are re-creatable with `docker build` from any commit; the live tag
+   `last30days-last30days` is the only one the container follows.
 
 ---
 
@@ -180,13 +200,21 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
   two of them assert on `README.md`; keeping a fork README there would have meant a permanently
   red suite or permanently excluding tests — which would have thrown away the main reason for
   taking the tree at all. The fork keeps its deployment doc, just not at the contested path.
-- **2026-09-21 — no live change, no push.** The v3.25.0 image is built and verified but staged;
-  the running container stays on 3.18.4 until Ron says otherwise.
+- **2026-09-21 — extended the UI's lanes to the engine's canonical 26** (delegated to dsh, diff-vs-intent
+  gate `match` 0.81). Two fixes rode along: `stocktwits` dropped (the CLI rejects it, so a single
+  deselection aborted any run) and `web` renamed to its canonical `grounding` so the evidence filter
+  matches item sources.
+- **2026-09-21 — swapped the live container onto v3.25.0** and verified from the running system:
+  engine reports `3.25.0` inside the container, `GET /` 200, `/api/sources` returns 26 lanes,
+  `/api/health` report_count 8 (the 7 pre-existing reports survived, plus the startup run).
+- **2026-09-21 — pushed the re-based `main` to `origin`** with `--force-with-lease`, plus the backup
+  branch and tag. Verified from the remote: `refs/heads/main` = c9570bf, `backup/docker-ui-v3.18.4`
+  and `docker-ui-v3.18.4` = aa5575a.
 
 ## Open questions / next
 
-1. Push the new `main` to `origin` (`--force-with-lease` — the fork's published history is being
-   rewritten) — standing fork-publishing convention, still needs Ron's go-ahead.
-2. Swap the live `last30days-runner` onto the v3.25.0 image (service restart).
-3. Extend `SOURCE_TABS` / `_detect_source` so the toggles match the engine's real source list.
-4. Add auth in front of the UI, or leave it LAN-only by decision.
+1. **Auth in front of the UI: declined for now** — it stays LAN-only. Revisit if it ever has to be
+   reachable from outside the LAN.
+2. `.env` keeps `SOURCES=` empty, so all 26 lanes render as toggles; pin a subset there if the pill
+   bar gets unwieldy.
+3. The stale `last30days:selftest-v3.25.0` / `-lanes` images can be deleted whenever (gotcha 11).

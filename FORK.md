@@ -49,6 +49,9 @@ when it does not.
 - **2026-08-01**: fork bootstrapped as a squashed snapshot of engine `v3.18.4` plus the container
   UI. Worked, but had no merge path to upstream — updating the engine meant re-snapshotting by
   hand and re-deriving the fallout.
-- **2026-09-21**: re-based onto upstream's real history at `v3.25.0` and re-applied the fork
-  files. From here, upstream releases arrive by merge. The old line is preserved as branch
-  `backup/docker-ui-v3.18.4` and tag `docker-ui-v3.18.4` (aa5575a).
+- **2026-09-21**: re-based onto upstream's real history at `v3.25.0` and re-applied the fork files.
+  From here, upstream releases arrive by merge. The old line is preserved as branch
+  `backup/docker-ui-v3.18.4` and tag `docker-ui-v3.18.4` (aa5575a), locally and on the fork.
+  Same day: the fork's source toggles were re-derived from the engine's canonical registry (26
+  lanes), upstream's `README.md` was restored in favour of `README.docker.md`, the re-based `main`
+  was force-pushed to `origin`, and the live container was rebuilt and swapped onto 3.25.0.
