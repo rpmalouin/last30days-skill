@@ -172,7 +172,8 @@ The remaining failure is environment, not code:
 |---|---|
 | `test_setup_wizard.py::TestWriteApiKey::test_unwritable_target_returns_false` | The fixture `chmod 0o500`s a dir and expects the write to fail; as root it succeeds. Proven both ways (root: write OK; uid 1000: `PermissionError`, test passes). The container runs as root too (`User` empty, `id` → uid 0), so it is inherent to a root-run, fork or not |
 
-Expect exactly that one failure (plus 3 skips) on a clean root-run. Anything else is real — with one
+Expect exactly that one failure on a clean root-run, plus the environment-gated skips listed in the
+corrected baseline below. Anything else is real — with one
 deliberate exception now: after the workflows were deleted (2026-09-21) the three upstream
 CI-contract files fail by design, because they assert on CI this fork does not have —
 `tests/test_changelog_workflow.py`, `tests/test_scorecard_workflow.py`,
@@ -187,6 +188,23 @@ root artifact above) / 3 skipped**. The numbers come from pytest's own cache
 
 Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 collected /
 4,959 passed / 17 failed / 3 skipped** — the 16 CI-contract failures above plus the root artifact.
+
+**Corrected 2026-09-21 (evening), same tree, same 4,979 collected:** `uv run --python 3.12 --group
+dev pytest --tb=no` reports **17 failed, 4,952 passed, 10 skipped, 102 subtests passed** (372s). The
+failure set is identical to the line above; only the pass/skip split moved, because several upstream
+tests gate on the environment and SKIP rather than pass when the gate is closed — measured
+examples: 4 × `tests/test_digg.py` (needs `LAST30DAYS_DIGG_LIVE` and `digg-pp-cli` on PATH),
+1 × `tests/test_new_sources_eval.py` (needs `LAST30DAYS_EVAL_LIVE=1`), 2 × the `root ignores
+directory permission bits` gates (`test_discover_mode.py`, `test_discover_handoff.py`; more of the
+same family exist in the suite). So **judge a change by the FAILURE SET and the collected count,
+never by the passed count** — that one moves with the host's tools and env flags, and a "4,952 vs
+4,959 passed" delta is a skip-count change, not a regression.
+
+Two measurement traps, both hit today: `addopts` in `pyproject.toml` already carries `-q`, so adding
+another `-q` on the command line makes it `-qq` and **suppresses pytest's final counts line
+entirely** (earlier numbers here had to be counted from `.pytest_cache/v/cache/`); run without the
+extra `-q`, or with `-rs`, to get the summary and the skip reasons. And `tail`-ing a long pytest run
+through a pipe does not change the numbers, but a pipe hides the exit code — read the log file.
 
 ---
 
