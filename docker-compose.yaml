@@ -1,0 +1,23 @@
+services:
+  last30days:
+    build: .
+    container_name: last30days-runner
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ${DATA_PATH:-./data}:/data
+    environment:
+      - LAST30DAYS_MEMORY_DIR=/data
+      # RESEARCH_TOPIC: run research on container start.
+      - RESEARCH_TOPIC=${RESEARCH_TOPIC:-}
+      # SOURCES: comma-separated source keys to show in the UI.
+      # Leave empty to show all supported sources.
+      - SOURCES=${SOURCES}
+      # SCRAPECREATORS_API_KEY: required for reliable Reddit/TikTok/LinkedIn
+      # results (keyless Reddit is rate-limited with 429s).
+      - SCRAPECREATORS_API_KEY=${SCRAPECREATORS_API_KEY:-}
+      # RESEARCH_INTERVAL_HOURS: re-run research on a schedule.
+      # - RESEARCH_INTERVAL_HOURS=6
+    # Default: start web server on port 8080, serve /data reports.
+    # Override command to run a one-shot research pass:
+    # command: ["sh", "-c", "python3 skills/last30days/scripts/last30days.py \"$RESEARCH_TOPIC\" --emit=html --save-dir=/data"]
