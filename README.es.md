@@ -2,14 +2,14 @@
 
 [English](README.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | Español | [Português (Brasil)](README.pt-BR.md) | [日本語](README.ja.md) | [简体中文](README.zh-CN.md)
 
-## Por que este fork
+## Por qué este fork
 
-El upstream `last30days` es una skill de agente: se instala en Claude Code, Codex, Cursor u otro host y se ejecuta el comando slash desde alli. Este fork controla el mismo motor como una **aplicacion web autoalojada** para un homelab - abrir una pagina, escribir un tema, elegir cuales de las 26 fuentes deben ejecutarse y leer el informe HTML con fecha junto con la evidencia sin procesar que lo genero.
+El upstream `last30days` es una skill de agente: se instala en Claude Code, Codex, Cursor u otro host y se ejecuta el comando slash desde allí. Este fork controla el mismo motor como una **consola de investigación autoalojada** para un homelab - abrir una página, escribir un tema, elegir cuáles de las 26 fuentes del motor deben ejecutarse y leer el informe HTML con fecha junto con la evidencia sin procesar que lo generó. Las ejecuciones se agrupan por tema: la cabecera muestra la ventana móvil, cada tarjeta reúne las instantáneas de su tema como pastillas fechadas que puedes seleccionar, y la barra de fuentes está agrupada por tipo.
 
-- **Solo el envoltorio es nuevo** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (un servidor HTTP solo con biblioteca estandar: campo de tema, interruptores por fuente, paginas de informe y de evidencia, borrado), mas `.env.example`, `README.docker.md`, `FORK.md` y `MEMORY.md`.
-- **El motor no se toca** - `git diff <upstream-tag> HEAD -- skills/last30days/` esta vacio, y este repositorio se apoya en el historial real del upstream, asi que una version del upstream es una fusion y no una reconstruccion.
-- **La documentacion de despliegue esta en** `README.docker.md`: los parametros de compose, las variables de entorno, la receta de verificacion en caja aislada y la ruta de reversion.
-- **Es un fork personal** - las pull requests estan desactivadas y no se ofrece soporte: haz tu propio fork y mantenlo tu.
+- **Solo el envoltorio es nuevo** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (un servidor HTTP solo con biblioteca estándar y una consola de investigación: cabecera con ventana móvil, tarjetas por tema con pastillas de instantánea seleccionables, interruptores de fuentes agrupados, páginas de informe y de evidencia, borrado por instantánea y por tema), más `.env.example`, `README.docker.md`, `FORK.md` y `MEMORY.md`.
+- **El motor no se toca** - `git diff <upstream-tag> HEAD -- skills/last30days/` está vacío, y este repositorio se apoya en el historial real del upstream, así que una versión del upstream es una fusión y no una reconstrucción.
+- **La documentación de despliegue está en** `README.docker.md`: la consola, sus tokens de color, las rutas y sus cargas útiles, los parámetros de compose, la receta de verificación en caja aislada y la ruta de reversión. Las comprobaciones de la consola se ejecutan con `scripts/ui_selftest.py` (85 comprobaciones, solo biblioteca estándar).
+- **Es un fork personal** - las pull requests están desactivadas y no se ofrece soporte: haz tu propio fork y mantenlo tú.
 
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />

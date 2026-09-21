@@ -4,11 +4,11 @@
 
 ## 为什么有这个 fork
 
-上游 `last30days` 是一个面向智能体的 skill：安装到 Claude Code、Codex、Cursor 等宿主中，然后在其中运行斜杠命令。这个 fork 用**自托管的 Web 应用**驱动同一个引擎 - 打开页面、输入主题、选择引擎的 26 个来源中要运行哪些，然后阅读带日期的 HTML 简报以及生成它的原始证据。
+上游 `last30days` 是一个面向智能体的 skill：安装到 Claude Code、Codex、Cursor 等宿主中，然后在其中运行斜杠命令。这个 fork 用**自托管的检索控制台**驱动同一个引擎 - 打开页面、输入主题、选择引擎的 26 个来源中要运行哪些，然后阅读带日期的 HTML 简报以及生成它的原始证据。每次运行按主题归并：页头显示滚动时间窗口，每张卡片把该主题的多次快照列为可选择的日期胶囊，来源栏按类型分组。
 
-- **只有封装层是新的** - `Dockerfile`、`docker-compose.yaml`、`entrypoint.sh`、`scripts/serve.py`（仅用标准库的 HTTP 服务：主题输入框、按来源开关、简报与证据页面、删除），以及 `.env.example`、`README.docker.md`、`FORK.md` 和 `MEMORY.md`。
+- **只有封装层是新的** - `Dockerfile`、`docker-compose.yaml`、`entrypoint.sh`、`scripts/serve.py`（仅用标准库的 HTTP 服务与检索控制台：时间窗口页头、带可选快照胶囊的主题卡片、分组来源开关、简报与证据页面、按快照与按主题删除），以及 `.env.example`、`README.docker.md`、`FORK.md` 和 `MEMORY.md`。
 - **引擎未做改动** - `git diff <upstream-tag> HEAD -- skills/last30days/` 为空，而且本仓库位于上游真实历史之上，因此上游发版是一次合并，而不是重新快照。
-- **部署文档位于** `README.docker.md`：compose 参数、环境变量、沙箱验证流程和回滚方式。
+- **部署文档位于** `README.docker.md`：控制台、其颜色令牌、路由与负载、compose 参数、沙箱验证流程和回滚方式。控制台自身的检查由 `scripts/ui_selftest.py` 运行（85 项断言，仅标准库）。
 - **这是个人 fork** - 已关闭 pull request，不提供支持：请自行 fork 并自行维护。
 
 <p align="center">

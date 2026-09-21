@@ -4,11 +4,11 @@ English | [Français](README.fr.md) | [Deutsch](README.de.md) | [Español](READM
 
 ## Why this fork
 
-Upstream `last30days` is an agent skill: you install it into Claude Code, Codex, Cursor or another host and run the slash command from there. This fork drives the same engine as a **self-hosted web app** for a home lab - open a page, type a topic, choose which of the engine's 26 source lanes should run, then read the dated HTML brief alongside the raw evidence it was built from.
+Upstream `last30days` is an agent skill: you install it into Claude Code, Codex, Cursor or another host and run the slash command from there. This fork drives the same engine as a **self-hosted research console** for a home lab - open a page, type a topic, choose which of the engine's 26 source lanes should run, then read the dated HTML brief alongside the raw evidence it was built from. Runs are grouped by topic: the header shows the trailing window, every card holds its topic's snapshots as dated pills you can select, and the lane bar is grouped by source type.
 
-- **Only the wrapper is new** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (a stdlib HTTP server: topic box, per-lane source toggles, report and evidence pages, delete), plus `.env.example`, `README.docker.md`, `FORK.md` and `MEMORY.md`.
+- **Only the wrapper is new** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (a stdlib HTTP server and research console: trailing-window header, topic cards with selectable snapshot pills, grouped lane toggles, report and evidence pages, delete per snapshot and per topic), plus `.env.example`, `README.docker.md`, `FORK.md` and `MEMORY.md`.
 - **The engine is untouched** - `git diff <upstream-tag> HEAD -- skills/last30days/` is empty, and this repository sits on upstream's real history, so an upstream release is a merge instead of a re-snapshot.
-- **Deployment documentation lives in** `README.docker.md`: the compose knobs, environment variables, the sandbox verification recipe and the rollback path.
+- **Deployment documentation lives in** `README.docker.md`: the console, its colour tokens, the routes and payloads, the compose knobs, the sandbox verification recipe and the rollback path. The console's own checks run from `scripts/ui_selftest.py` (85 assertions, standard library only).
 - **This is a personal fork** - pull requests are disabled and no support is offered: fork it and support your fork.
 
 <p align="center">

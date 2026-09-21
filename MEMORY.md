@@ -371,6 +371,18 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   anchor), then starts the server on a loopback port and drives the HTTP surface including snapshot
   and topic deletes. 85/85 on the host's Python 3.10 and inside the shipped image (3.12). This
   replaces the ad-hoc `/tmp` harnesses.
+- **2026-09-21 — the `Why this fork` block was rewritten in all seven READMEs.** That block is the
+  fork's ONLY owned text in `README.md` and is mirrored into `README.fr/de/es/pt-BR/ja/zh-CN.md`; it
+  now describes the console as it actually is (trailing window, cards per topic with selectable
+  snapshot pills, lane bar grouped by source type, the self-test script, `README.docker.md` as the
+  deployment doc) instead of the pre-refactor "topic box, per-lane toggles" wording. The FR/DE/ES/PT
+  mirrors were also de-ASCII-fied — they had been written accent-folded while upstream's own text in
+  those files is accented. Element parity holds exactly across all seven: 28 code fences, 23 code
+  commands, 31 external link targets, identical per-line `|` table profile, 14 ordered items, and
+  `tests/test_readme_translations.py` + `test_doc_security_contract.py` + `test_env_doc_contract.py`
+  + `test_version_consistency.py` pass (16 tests). **Editing rule**: the block is element-neutral —
+  adding a fence, table, ordered item or external link to it means adding it to all seven, and the
+  relative-link set differs per file by design (each translation links to the other six, not itself).
 
 ## Open questions / next
 

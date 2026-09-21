@@ -4,12 +4,12 @@
 
 ## Warum dieser Fork
 
-Das upstream `last30days` ist ein Agent-Skill: du installierst es in Claude Code, Codex, Cursor oder einen anderen Host und rufst den Slash-Befehl dort auf. Dieser Fork steuert dieselbe Engine als **selbst gehostete Web-App** fuer ein Homelab - Seite oeffnen, Thema eingeben, auswaehlen, welche der 26 Quell-Lanes laufen sollen, und den datierten HTML-Bericht zusammen mit den Rohbelegen lesen.
+Das upstream `last30days` ist ein Agent-Skill: du installierst es in Claude Code, Codex, Cursor oder einen anderen Host und rufst den Slash-Befehl dort auf. Dieser Fork steuert dieselbe Engine als **selbst gehostete Recherche-Konsole** für ein Homelab - Seite öffnen, Thema eingeben, auswählen, welche der 26 Quell-Lanes laufen sollen, und den datierten HTML-Bericht zusammen mit den Rohbelegen lesen. Läufe werden nach Thema gruppiert: der Kopf zeigt das gleitende Fenster, jede Karte bündelt die Momentaufnahmen ihres Themas als datierte Pillen zur Auswahl, und die Lane-Leiste ist nach Quellentyp gruppiert.
 
-- **Neu ist nur der Wrapper** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (ein HTTP-Server nur mit Standardbibliothek: Themenfeld, Schalter pro Quelle, Bericht- und Belegseiten, Loeschen) sowie `.env.example`, `README.docker.md`, `FORK.md` und `MEMORY.md`.
+- **Neu ist nur der Wrapper** - `Dockerfile`, `docker-compose.yaml`, `entrypoint.sh`, `scripts/serve.py` (ein HTTP-Server nur mit Standardbibliothek und eine Recherche-Konsole: Kopf mit gleitendem Fenster, Themenkarten mit auswählbaren Momentaufnahme-Pillen, gruppierte Lane-Schalter, Bericht- und Belegseiten, Löschen pro Momentaufnahme und pro Thema) sowie `.env.example`, `README.docker.md`, `FORK.md` und `MEMORY.md`.
 - **Die Engine bleibt unangetastet** - `git diff <upstream-tag> HEAD -- skills/last30days/` ist leer, und dieses Repository liegt auf der echten Upstream-Historie, sodass ein Upstream-Release ein Merge ist statt einer Neuerstellung.
-- **Die Deployment-Dokumentation steht in** `README.docker.md`: Compose-Parameter, Umgebungsvariablen, das Sandbox-Verfahren zur Ueberpruefung und der Rollback-Pfad.
-- **Dies ist ein persoenlicher Fork** - Pull Requests sind deaktiviert und es gibt keinen Support: forke ihn und unterstuetze deinen eigenen Fork.
+- **Die Deployment-Dokumentation steht in** `README.docker.md`: die Konsole, ihre Farb-Token, die Routen und Nutzlasten, Compose-Parameter, das Sandbox-Verfahren zur Überprüfung und der Rollback-Pfad. Die Prüfungen der Konsole laufen über `scripts/ui_selftest.py` (85 Prüfungen, nur Standardbibliothek).
+- **Dies ist ein persönlicher Fork** - Pull Requests sind deaktiviert und es gibt keinen Support: forke ihn und unterstütze deinen eigenen Fork.
 
 <p align="center">
   <img src="media/pr-assets/last30days-ad.gif" width="720" alt="last30days - an AI agent-led search engine that searches people, not editors" />
