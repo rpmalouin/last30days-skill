@@ -92,32 +92,35 @@ the injected Raw Evidence section.
 startup run. Note the startup research pass runs *before* the server binds, so a recreate costs
 about two minutes of UI downtime.
 
-**Live container carries both UI passes** (swapped twice on 2026-09-21: 19:12Z for the temporal
-index, 19:26Z for the card/lane interaction pass). Current image
-`last30days-last30days:latest` → `e88530c5b1fb`, container `last30days-runner` recreated from this
-tree, `scripts/serve.py` inside the container is the committed blob (sha256 `33ffb987…`). Each
+**Live container carries all three UI passes** (swapped three times on 2026-09-21: 19:12Z temporal
+index, 19:26Z card/lane interaction, 19:40Z warm theme). Current image
+`last30days-last30days:latest` → `735f003e0801`, container `last30days-runner` recreated from this
+tree, `scripts/serve.py` inside the container is the committed blob (sha256 `7e4f0c2f…`). Each
 recreate costs **2m10s** of UI downtime because the startup research pass runs before the server
-binds (two engine passes on `RESEARCH_TOPIC="AI agents"`, ~57s + ~57s, ScrapeCreators credits spent;
-report count went 9 → 10 → 11 as each swap stacked a new AI agents snapshot — the card now shows 8
-snapshot pills).
+binds (two engine passes on `RESEARCH_TOPIC="AI agents"`, ~57s each, ScrapeCreators credits spent;
+each swap stacked another AI agents snapshot — that card now shows 9 pills, and Ron's own test of
+the card Delete took one report off the list, so `report_count` is not monotonic).
 
-Rollback images kept for this stack (both still on disk, retained by the `*:prev-*` pattern in
+Rollback images kept for this stack (all on disk, retained by the `*:prev-*` pattern in
 `PRUNE-RETENTION.md`) — retag and recreate, no rebuild:
 
 | Tag | Holds | What it is |
 |---|---|---|
-| `last30days-last30days:prev-aca820a` | `f577bd88a923` | temporal index, BEFORE the interaction pass |
+| `last30days-last30days:prev-9abbac6` | `e88530c5b1fb` | interaction pass, BEFORE the warm theme |
+| `last30days-last30days:prev-aca820a` | `f577bd88a923` | temporal index, before the interaction pass |
 | `last30days-last30days:prev-7f71a8d` | `a96620cb34d2` | pre-UI-refactor (old cards + neon chips) |
 
-Verified on the live instance after the second swap: 26 lanes, `/api` payload shapes unchanged,
-window pill `Trailing 30 Days: Aug 22 – Sep 21`, `11 reports indexed`, 4 topic cards, one active
-pill per aggregated card and it is the newest, action rows `Report · Evidence · <exact ts>` on all
-cards, card Delete carrying every snapshot slug, 3 category rows with `[ALL]`/`[NONE]`, pill
-selection rewiring Report/Evidence/timestamp (17:28 pill → `…/ai-agents-raw-html-2026-09-21/`),
-`armed` → `delete?` → disarmed, SOCIAL `[none]` → 0 selected then `[all]` → 12, active pill computed
-`rgb(228,228,231)` / `rgb(9,9,11)`, report + evidence pages 200. Scratch `last30days:selftest-ui2`
-and its container/`/tmp/l30d-selftest2` were removed after the swap; both are re-creatable with
-`docker build` + the sandbox recipe above.
+Verified on the live instance after the third swap: `report_count` 11, 26 lanes and
+`/api/sources` = `{key,label,available}` (no `color`), `/api/reports` still six keys, warm tokens
+present in both the index and the injected block of the engine's report pages, zero cold/neon hex in
+the live index, and computed colours in the browser — body `rgb(20,18,15)`/`rgb(237,229,216)`, card
+`rgb(31,27,22)`/`rgb(51,44,35)`, Research button `rgb(212,163,89)` with `rgb(24,21,18)`, search border
+`rgb(84,71,53)`, selected chip `rgb(58,47,30)`/`rgb(212,163,89)`, active pill
+`rgb(230,222,209)`/`rgb(28,24,19)`, inactive pill `rgb(38,33,26)`/`rgb(158,146,130)`, labels
+`rgb(143,130,112)`, timestamp pill `rgb(26,22,19)`/`rgb(158,146,130)`, `--accent` resolves to
+`#d4a359` on a report page whose own stylesheet declares `#a855f7`. Scratch verification instances
+(`selftest-ui`, `selftest-ui2`, `selftest-theme`) and their `/tmp` data copies were removed after
+each swap; they are re-creatable with `docker build` + the sandbox recipe above.
 
 The previous build's image was **not** retained — `docker compose build` moved the tag and the
 untagged image was reclaimed, so the v3.25.0 engine-bump build has no `local-prev-*` rollback tag.
