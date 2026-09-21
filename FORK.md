@@ -11,16 +11,22 @@
 
 ## Why the fork exists
 
-The homelab wants a **browser console** for the engine: type a topic, toggle which sources get
-searched, trigger and delete runs from a web page, browse the prose report and the raw evidence
+The homelab wants a **browser console** for the engine: type a topic, toggle which of the 26 lanes
+get searched, trigger and delete runs from a web page, browse the prose report and the raw evidence
 items it came from. Upstream ships no server, no dashboard and no UI of any kind — the product is
 the skill installed into an agent host. Everything the fork adds is that console.
+
+The console is built around the engine's trailing window rather than around files: one card per
+topic, every run of that topic a dated snapshot pill you can select, the active window in the
+header, and a lane bar grouped by source type. It is a single warm-dark theme (espresso, roasted
+umber, burnished gold), styled entirely from one token block that is also injected into the
+engine's own report pages so those render in the same theme without touching engine output.
 
 ## What the fork adds (the only fork-owned code)
 
 | Path | Purpose |
 |---|---|
-| `scripts/serve.py` | stdlib HTTP server: index with research bar + source toggles, report page with inline evidence, evidence page, small JSON API, CSRF-free local use, delete |
+| `scripts/serve.py` | stdlib HTTP server + research console: trailing-window header, command box, grouped lane bar with `[all]`/`[none]`, topic cards with selectable snapshot pills and topic-scoped delete, report page with injected evidence, evidence page, small JSON API, CSRF-free local use |
 | `entrypoint.sh` | container entrypoint: optional startup research (HTML + raw JSON), then exec the server |
 | `Dockerfile` | `python:3.12-slim`, installs `uv` + `yt-dlp` (yt-dlp gates the YouTube lane) |
 | `docker-compose.yaml` | service definition (published port, `DATA_PATH` volume, `SOURCES`, `RESEARCH_TOPIC`, `SCRAPECREATORS_API_KEY`) |
@@ -72,3 +78,13 @@ by taking upstream's file back if you want CI, or by keeping the deletion if you
   seven READMEs, the support policy is stated (`fork it and support your fork`, pull requests
   disabled), and the repository runs no automation — the nine upstream workflows and
   `.github/dependabot.yml` were deleted after a secrets sweep over every ref came back clean.
+- **2026-09-21 (evening) — the console was rebuilt in three passes**, each verified in a throwaway
+  container and then swapped into the live deployment: the library index became a temporal console
+  (trailing-window header, topic-only card titles, relative `Indexed <day> · Covering last 30d` meta,
+  recurring topics collapsed into one card with dated snapshot pills, muted grouped lane bar); then
+  the card and lane interactions (explicit active-pill state, pill selection driving the
+  `Report`/`Evidence` targets and the exact-timestamp pill, arm-then-confirm snapshot delete,
+  topic-scoped card delete, `[all]`/`[none]` quick toggles); then the warm-dark design system
+  (espresso/umber/brass/linen/sandstone with burnished gold in place of the purple accent, tokens
+  shared with the engine's report pages). `README.docker.md` documents the resulting UI, its tokens
+  and the routes.

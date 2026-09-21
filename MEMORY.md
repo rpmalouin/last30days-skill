@@ -352,6 +352,16 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
   `rgb(224,178,106)`) and a real click into the search box (`rgb(212,163,89)` border + `rgb(84,71,53)`
   2px ring); the engine's report pages repaint warm because the injected `:root` wins by source order
   (accent resolves to `#d4a359` on a page whose own stylesheet declares `#a855f7`).
+- **2026-09-21 — docs resynced to the rebuilt console.** `README.docker.md` was rewritten for the
+  current UI (trailing window, command box, grouped lane bar with `[all]`/`[none]`, topic cards and
+  snapshot pills, arm-to-confirm and topic-scoped delete), gained the token table for the warm
+  design system and the reason the tokens are injected into engine-rendered pages, corrected the
+  26-lane source list (no `stocktwits`), the route table (`DELETE /api/reports/{slug}`, the real
+  `/api/reports` and `/api/sources` payload keys) and the stale `git checkout v3.18.4` engine note
+  (the engine now arrives by merging an upstream tag), and added an Operations section (recreate
+  downtime, `prev-*` rollback tags, sandbox-with-a-fresh-copy). `FORK.md` gained the same console
+  description in "Why the fork exists" + the history entry. The vault project notes
+  (`Homelab/02 Projects/last30days/…`, container `notes`) were updated through Hatchdoor MCP.
 
 ## Open questions / next
 
