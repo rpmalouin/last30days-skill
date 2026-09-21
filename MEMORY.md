@@ -167,8 +167,10 @@ Re-measured after the workflow deletion (2026-09-21, HEAD `be38ca`+): **4,979 co
    first been set to `disabled_manually`, but a disabled workflow in a public repo is still visible
    dead weight), Dependabot off (`.github/dependabot.yml` removed), and Issues off (Ron, 2026-09-21).
    Two repo-settings writes still cannot be done from this box: the PAT lacks `administration`
-   scope, so every `PATCH /repos/...` returns 403 — the description still carries upstream's line
-   (`Research any topic across 14+ platforms`) and the run history cannot be cleared. Treat
+   scope, so every `PATCH /repos/...` returns 403 — topics stay empty and the run history cannot be
+   cleared. The **description** was updated in the About panel (Ron, 2026-09-21) but upstream's line
+   was appended to rather than replaced, so it still starts `Research any topic across 14+ platforms,    `
+   (stale platform count + stray spaces); the intended clean text is in the vault Change Log. Treat
    repo-settings edits as UI clicks; the per-workflow disable endpoint does work
    (`PUT .../actions/workflows/<id>/disable`).
 
